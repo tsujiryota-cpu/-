@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>身内ネタ性格診断【MBTI風・科学的根拠0人】</title>
+<title>颯思颯愛診断【MBTI風・科学的根拠0人】</title>
 <style>
   :root {
     --bg: #1a1333;
@@ -434,7 +434,7 @@
 <div class="app">
   <!-- ===== スタート画面 ===== -->
   <div id="screen-start" class="card">
-    <h1>🧠 身内ネタ性格診断</h1>
+    <h1>🧠 颯思颯愛診断</h1>
     <p class="subtitle">MBTIっぽいけど科学的根拠は0人<br>全14問で、お前が「どのネタ」なのかが判明する</p>
     <div class="cast-grid" id="cast"></div>
     <button class="btn primary" onclick="startQuiz()">診断をはじめる(誠に遺憾です)</button>
@@ -615,9 +615,11 @@ const QUESTIONS = [
     ["最終週に泣きながら終わらせる。毎年", 0],
     ["初日に終わらせて毎日投稿並みの安定感で遊ぶ", -1],
   ]},
-  { axis: 3, text: "正直に答えろ。自分に近いのはどっちだ?", choices: [
+  { axis: 3, text: "正直に答えろ。一番「自分だな」と思うのは?", choices: [
     ["ソウルドリンクとソフトドリンクを誤認したことがある", 1],
+    ["毎年、友達の誕生日を二日遅れで祝ってしまう。", 1],
     ["特にないが、心当たりのある顔なら浮かんだ", 0],
+    ["顔は白くなるほど日焼けの夢を塗ってしまう。", -1],
     ["駒を10マス移動する時、一つずつ数える", -1],
   ]},
 ];
@@ -842,7 +844,7 @@ function showResult() {
   });
 
   window._resultText =
-    `【身内ネタ性格診断】\n` +
+    `【颯思颯愛診断】\n` +
     `私は「${code}:${t.name}」でした🧠\n` +
     `→ ${t.tagline}\n` +
     `💖相性◎: ${TYPES[t.best].name} / 💀相性✕: ${TYPES[t.worst].name}\n` +
