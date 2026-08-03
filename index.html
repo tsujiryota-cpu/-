@@ -72,6 +72,43 @@
   }
   .cast-grid svg { width: 100%; height: auto; border-radius: 10px; display: block; }
   .sound-note { font-size: .72rem; color: var(--muted); margin-top: 12px; line-height: 1.6; }
+  .dex-hint { font-size: .75rem; color: var(--muted); margin-bottom: 4px; }
+  .dex-item {
+    background: #342a5e;
+    border-radius: 12px;
+    margin-top: 8px;
+    overflow: hidden;
+  }
+  .dex-item.me { outline: 2px solid var(--accent); }
+  .dex-item summary {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    cursor: pointer;
+    list-style: none;
+  }
+  .dex-item summary::-webkit-details-marker { display: none; }
+  .dex-item summary:active { background: #453879; }
+  .dex-item summary svg { width: 48px; height: 48px; border-radius: 8px; flex-shrink: 0; }
+  .dex-info { flex: 1; min-width: 0; }
+  .dex-code { font-size: .72rem; color: var(--accent3); font-weight: bold; letter-spacing: .1em; }
+  .dex-name { font-weight: bold; font-size: .95rem; }
+  .dex-you {
+    font-size: .65rem;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 6px;
+    padding: 2px 6px;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+  .dex-tag { font-size: .75rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dex-arrow { color: var(--muted); font-size: .7rem; transition: transform .2s; }
+  .dex-item[open] .dex-arrow { transform: rotate(180deg); }
+  .dex-body { padding: 0 14px 14px; font-size: .85rem; line-height: 1.75; }
+  .dex-body h4 { color: var(--accent2); font-size: .75rem; letter-spacing: .12em; margin: 12px 0 4px; }
+  .dex-body p { color: var(--text); }
   .progress-wrap { height: 8px; background: #342a5e; border-radius: 4px; margin-bottom: 20px; overflow: hidden; }
   .progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width .3s; }
   .q-count { color: var(--muted); font-size: .8rem; margin-bottom: 8px; }
@@ -463,6 +500,12 @@
       </div>
     </div>
 
+    <div class="section">
+      <h3>■ 全16タイプ図鑑(他のタイプも見る)</h3>
+      <p class="dex-hint">タップで詳細が開きます。友達がどれか当てはめて遊べ。</p>
+      <div id="rdex"></div>
+    </div>
+
     <button class="btn primary" onclick="copyResult()">結果をコピーして自慢する</button>
     <button class="btn" style="text-align:center" onclick="location.reload()">もう一回やる(結果が誠に遺憾だった人向け)</button>
   </div>
@@ -851,6 +894,32 @@ function showResult() {
     requestAnimationFrame(() => {
       div.querySelector(".axis-fill").style.width = pct + "%";
     });
+  });
+
+  // 全16タイプ図鑑(自分のタイプを先頭にしてハイライト)
+  const dex = document.getElementById("rdex");
+  dex.innerHTML = "";
+  const dexOrder = [code, ...Object.keys(TYPES).filter(c => c !== code)];
+  dexOrder.forEach(c => {
+    const dt = TYPES[c];
+    const d = document.createElement("details");
+    d.className = "dex-item" + (c === code ? " me" : "");
+    d.innerHTML = `
+      <summary>
+        <svg viewBox="0 0 100 100" role="img" aria-label="${dt.name}"><use href="#pt-${c}"/></svg>
+        <div class="dex-info">
+          <div><span class="dex-code">${c}</span> <span class="dex-name">${dt.name}</span>${c === code ? '<span class="dex-you">あなた</span>' : ""}</div>
+          <div class="dex-tag">${dt.tagline}</div>
+        </div>
+        <span class="dex-arrow">▼</span>
+      </summary>
+      <div class="dex-body">
+        <h4>■ どんな人?</h4><p>${dt.desc}</p>
+        <h4>■ 取扱説明書</h4><p>${dt.manual}</p>
+        <h4>■ 元ネタ解説(にわか向け)</h4><p>${dt.neta}</p>
+        <h4>■ 相性</h4><p>💖 ${TYPES[dt.best].name}(${dt.best}) / 💀 ${TYPES[dt.worst].name}(${dt.worst})</p>
+      </div>`;
+    dex.appendChild(d);
   });
 
   window._resultText =
