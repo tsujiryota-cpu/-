@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>クソどうでもいい性格診断【MBTI風】</title>
+<title>身内ネタ性格診断【MBTI風・科学的根拠0人】</title>
 <style>
   :root {
     --bg: #1a1333;
@@ -40,7 +40,7 @@
     text-align: center;
     margin-bottom: 8px;
   }
-  .subtitle { text-align: center; color: var(--muted); font-size: .85rem; margin-bottom: 24px; }
+  .subtitle { text-align: center; color: var(--muted); font-size: .85rem; margin-bottom: 20px; line-height: 1.7; }
   .btn {
     display: block;
     width: 100%;
@@ -64,6 +64,13 @@
     text-align: center;
     font-size: 1.1rem;
   }
+  .cast-grid {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 6px;
+    margin-bottom: 20px;
+  }
+  .cast-grid svg { width: 100%; height: auto; border-radius: 10px; display: block; }
   .progress-wrap { height: 8px; background: #342a5e; border-radius: 4px; margin-bottom: 20px; overflow: hidden; }
   .progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width .3s; }
   .q-count { color: var(--muted); font-size: .8rem; margin-bottom: 8px; }
@@ -71,19 +78,27 @@
   .hidden { display: none; }
 
   /* 結果画面 */
+  .portrait {
+    width: 160px; height: 160px;
+    margin: 0 auto 16px;
+    border-radius: 24px;
+    overflow: hidden;
+    box-shadow: 0 6px 24px rgba(0,0,0,.4);
+  }
+  .portrait svg { width: 100%; height: 100%; display: block; }
   .result-code {
     text-align: center;
-    font-size: 2.4rem;
+    font-size: 2.2rem;
     font-weight: 900;
-    letter-spacing: .1em;
+    letter-spacing: .12em;
     background: linear-gradient(90deg, var(--accent2), var(--accent), var(--accent3));
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
   }
-  .result-name { text-align: center; font-size: 1.4rem; font-weight: bold; margin-bottom: 4px; }
-  .result-tagline { text-align: center; color: var(--muted); font-size: .85rem; margin-bottom: 20px; }
+  .result-name { text-align: center; font-size: 1.45rem; font-weight: bold; margin-bottom: 4px; }
+  .result-tagline { text-align: center; color: var(--muted); font-size: .9rem; margin-bottom: 20px; }
   .section { margin-top: 20px; }
   .section h3 {
     font-size: .8rem;
@@ -92,8 +107,17 @@
     margin-bottom: 8px;
   }
   .section p { font-size: .95rem; line-height: 1.8; }
+  .neta-box {
+    background: #1d1640;
+    border-left: 3px solid var(--accent3);
+    border-radius: 0 10px 10px 0;
+    padding: 12px 14px;
+    font-size: .85rem;
+    line-height: 1.7;
+    color: var(--muted);
+  }
   .axis { margin-top: 14px; }
-  .axis-labels { display: flex; justify-content: space-between; font-size: .8rem; margin-bottom: 4px; }
+  .axis-labels { display: flex; justify-content: space-between; font-size: .78rem; margin-bottom: 4px; gap: 8px; }
   .axis-labels .win { font-weight: bold; color: var(--accent2); }
   .axis-bar { height: 10px; background: #342a5e; border-radius: 5px; overflow: hidden; }
   .axis-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent3)); border-radius: 5px; transition: width .8s ease-out; }
@@ -125,13 +149,246 @@
 </style>
 </head>
 <body>
+
+<!-- ============================================================
+     タイプ別ポートレート(自作SVG 16枚)
+     ============================================================ -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <!-- BDSC チンパンジー -->
+    <symbol id="pt-BDSC" viewBox="0 0 100 100">
+      <rect width="100" height="100" fill="#2e7d32"/>
+      <circle cx="22" cy="46" r="12" fill="#4e342e"/>
+      <circle cx="78" cy="46" r="12" fill="#4e342e"/>
+      <circle cx="22" cy="46" r="6" fill="#8d6e63"/>
+      <circle cx="78" cy="46" r="6" fill="#8d6e63"/>
+      <circle cx="50" cy="48" r="30" fill="#4e342e"/>
+      <ellipse cx="50" cy="58" rx="22" ry="20" fill="#bcaaa4"/>
+      <ellipse cx="38" cy="42" rx="9" ry="10" fill="#bcaaa4"/>
+      <ellipse cx="62" cy="42" rx="9" ry="10" fill="#bcaaa4"/>
+      <circle cx="38" cy="42" r="4" fill="#1b1b1b"/>
+      <circle cx="62" cy="42" r="4" fill="#1b1b1b"/>
+      <circle cx="39.5" cy="40.5" r="1.3" fill="#fff"/>
+      <circle cx="63.5" cy="40.5" r="1.3" fill="#fff"/>
+      <ellipse cx="46" cy="56" rx="2.5" ry="3.5" fill="#4e342e"/>
+      <ellipse cx="54" cy="56" rx="2.5" ry="3.5" fill="#4e342e"/>
+      <path d="M38 68 Q50 78 62 68" stroke="#4e342e" stroke-width="3" fill="none" stroke-linecap="round"/>
+    </symbol>
+
+    <!-- BDSJ ヒカキン(王冠と再生ボタン) -->
+    <symbol id="pt-BDSJ" viewBox="0 0 100 100">
+      <rect width="100" height="100" fill="#d32f2f"/>
+      <path d="M28 34 L38 22 L50 32 L62 22 L72 34 Z" fill="#ffd166"/>
+      <circle cx="38" cy="22" r="3.5" fill="#ffd166"/>
+      <circle cx="62" cy="22" r="3.5" fill="#ffd166"/>
+      <circle cx="50" cy="18" r="3.5" fill="#ffd166"/>
+      <rect x="24" y="38" width="52" height="38" rx="10" fill="#fff"/>
+      <path d="M44 47 L62 57 L44 67 Z" fill="#d32f2f"/>
+      <text x="50" y="93" font-size="10" fill="#fff" text-anchor="middle" font-weight="bold">ブンブン</text>
+    </symbol>
+
+    <!-- BDKC 栗松鉄平(サッカーボールとトサカ) -->
+    <symbol id="pt-BDKC" viewBox="0 0 100 100">
+      <rect width="100" height="100" fill="#43a047"/>
+      <rect x="0" y="70" width="100" height="30" fill="#2e7d32"/>
+      <path d="M50 8 L42 28 L58 28 Z" fill="#6d4c41"/>
+      <path d="M38 14 L34 30 L48 26 Z" fill="#6d4c41"/>
+      <path d="M62 14 L66 30 L52 26 Z" fill="#6d4c41"/>
+      <circle cx="50" cy="42" r="16" fill="#ffcc80"/>
+      <circle cx="44" cy="40" r="2.4" fill="#3e2723"/>
+      <circle cx="56" cy="40" r="2.4" fill="#3e2723"/>
+      <path d="M43 49 Q50 55 57 49" stroke="#3e2723" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      <circle cx="50" cy="78" r="13" fill="#fff"/>
+      <path d="M50 70 L54 75 L52 81 L48 81 L46 75 Z" fill="#212121"/>
+      <text x="50" y="97" font-size="8.5" fill="#fff" text-anchor="middle" font-weight="bold">でやんす</text>
+    </symbol>
+
+    <!-- BDKJ 米村でんじろう(空気砲) -->
+    <symbol id="pt-BDKJ" viewBox="0 0 100 100">
+      <rect width="100" height="100" fill="#0277bd"/>
+      <rect x="12" y="34" width="44" height="40" rx="4" fill="#bf8f5f"/>
+      <rect x="12" y="34" width="44" height="8" fill="#a97c4f"/>
+      <rect x="12" y="66" width="44" height="8" fill="#a97c4f"/>
+      <circle cx="34" cy="54" r="11" fill="#3e2723"/>
+      <circle cx="66" cy="54" r="6" fill="none" stroke="#e1f5fe" stroke-width="3" opacity=".9"/>
+      <circle cx="79" cy="54" r="8" fill="none" stroke="#e1f5fe" stroke-width="3" opacity=".6"/>
+      <circle cx="92" cy="54" r="10" fill="none" stroke="#e1f5fe" stroke-width="3" opacity=".35"/>
+      <text x="50" y="93" font-size="10" fill="#fff" text-anchor="middle" font-weight="bold">実験成功!</text>
+    </symbol>
+
+    <!-- BISC バキ童(街頭インタビュー) -->
+    <symbol id="pt-BISC" viewBox="0 0 100 100">
+      <rect width="100" height="100" fill="#455a64"/>
+      <circle cx="58" cy="44" r="18" fill="#ffcc80"/>
+      <path d="M42 36 Q58 22 74 36 L74 30 Q58 18 42 30 Z" fill="#3e2723"/>
+      <rect x="46" y="40" width="10" height="8" rx="2" fill="none" stroke="#263238" stroke-width="2.5"/>
+      <rect x="61" y="40" width="10" height="8" rx="2" fill="none" stroke="#263238" stroke-width="2.5"/>
+      <line x1="56" y1="43" x2="61" y2="43" stroke="#263238" stroke-width="2.5"/>
+      <ellipse cx="58" cy="56" rx="4" ry="3" fill="#6d4c41"/>
+      <path d="M76 32 Q80 36 78 40" stroke="#4fc3f7" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      <rect x="16" y="58" width="10" height="22" rx="5" fill="#212121"/>
+      <circle cx="21" cy="56" r="7" fill="#616161"/>
+      <text x="50" y="94" font-size="9" fill="#fff" text-anchor="middle" font-weight="bold">誠に遺憾です</text>
+    </symbol>
+
+    <!-- BISJ セイキン(ギターと音符) -->
+    <symbol id="pt-BISJ" viewBox="0 0 100 100">
+      <rect width="100" height="100" fill="#00897b"/>
+      <ellipse cx="42" cy="66" rx="20" ry="17" fill="#ffb74d"/>
+      <ellipse cx="46" cy="46" rx="12" ry="11" fill="#ffb74d"/>
+      <circle cx="44" cy="60" r="6" fill="#4e342e"/>
+      <rect x="50" y="18" width="5" height="42" rx="2" fill="#6d4c41" transform="rotate(28 52 39)"/>
+      <rect x="66" y="12" width="10" height="8" rx="2" fill="#4e342e" transform="rotate(28 71 16)"/>
+      <text x="22" y="30" font-size="16" fill="#fff" font-weight="bold">♪</text>
+      <text x="76" y="52" font-size="12" fill="#fff" font-weight="bold">♫</text>
+      <text x="50" y="94" font-size="9" fill="#fff" text-anchor="middle" font-weight="bold">イェイイェイ↑</text>
+    </symbol>
+
+    <!-- BIKC 何を四天王 -->
+    <symbol id="pt-BIKC" viewBox="0 0 100 100">
+      <rect width="100" height="100" fill="#4a148c"/>
+      <rect x="10" y="10" width="38" height="38" rx="6" fill="#7b1fa2"/>
+      <rect x="52" y="10" width="38" height="38" rx="6" fill="#8e24aa"/>
+      <rect x="10" y="52" width="38" height="38" rx="6" fill="#6a1b9a"/>
+      <rect x="52" y="52" width="38" height="38" rx="6" fill="#9c27b0"/>
+      <text x="29" y="38" font-size="22" fill="#ffd166" text-anchor="middle" font-weight="bold">何</text>
+      <text x="71" y="38" font-size="22" fill="#ffd166" text-anchor="middle" font-weight="bold">を</text>
+      <text x="29" y="80" font-size="22" fill="#ffd166" text-anchor="middle" font-weight="bold">四</text>
+      <text x="71" y="80" font-size="22" fill="#ffd166" text-anchor="middle" font-weight="bold">天</text>
+    </symbol>
+
+    <!-- BIKJ 舐められてたまるか(拳と炎) -->
+    <symbol id="pt-BIKJ" viewBox="0 0 100 100">
+      <rect width="100" height="100" fill="#b71c1c"/>
+      <path d="M50 12 Q60 26 54 34 Q66 30 64 44 Q76 42 70 56 L30 56 Q24 42 36 44 Q34 30 46 34 Q40 26 50 12" fill="#ff9800"/>
+      <path d="M50 24 Q56 32 52 38 Q60 36 58 46 L42 46 Q40 36 48 38 Q44 32 50 24" fill="#ffd166"/>
+      <rect x="34" y="56" width="32" height="24" rx="8" fill="#ffcc80"/>
+      <line x1="42" y1="56" x2="42" y2="72" stroke="#e6a96b" stroke-width="2"/>
+      <line x1="50" y1="56" x2="50" y2="72" stroke="#e6a96b" stroke-width="2"/>
+      <line x1="58" y1="56" x2="58" y2="72" stroke="#e6a96b" stroke-width="2"/>
+      <text x="50" y="95" font-size="9" fill="#fff" text-anchor="middle" font-weight="bold">言うべきことは言う</text>
+    </symbol>
+
+    <!-- WDSC syamu(和室とコントローラー) -->
+    <symbol id="pt-WDSC" viewBox="0 0 100 100">
+      <rect width="100" height="100" fill="#8d9c5e"/>
+      <line x1="50" y1="0" x2="50" y2="100" stroke="#75844c" stroke-width="2"/>
+      <line x1="0" y1="50" x2="100" y2="50" stroke="#75844c" stroke-width="2"/>
+      <rect x="8" y="8" width="84" height="84" fill="none" stroke="#5d6b3c" stroke-width="3"/>
+      <rect x="30" y="40" width="40" height="24" rx="10" fill="#37474f"/>
+      <circle cx="40" cy="52" r="4" fill="#90a4ae"/>
+      <circle cx="60" cy="49" r="2.6" fill="#ef5350"/>
+      <circle cx="65" cy="54" r="2.6" fill="#66bb6a"/>
+      <circle cx="55" cy="54" r="2.6" fill="#42a5f5"/>
+      <text x="50" y="82" font-size="10" fill="#2f3a1e" text-anchor="middle" font-weight="bold">大物YouTubeｒ</text>
+    </symbol>
+
+    <!-- WDSJ 佐藤拓也(マイクと「やれます!」) -->
+    <symbol id="pt-WDSJ" viewBox="0 0 100 100">
+      <rect width="100" height="100" fill="#283593"/>
+      <rect x="44" y="46" width="12" height="30" rx="5" fill="#616161"/>
+      <ellipse cx="50" cy="42" rx="12" ry="14" fill="#9e9e9e"/>
+      <line x1="42" y1="36" x2="58" y2="36" stroke="#757575" stroke-width="1.6"/>
+      <line x1="42" y1="42" x2="58" y2="42" stroke="#757575" stroke-width="1.6"/>
+      <line x1="43" y1="48" x2="57" y2="48" stroke="#757575" stroke-width="1.6"/>
+      <rect x="14" y="10" width="52" height="18" rx="9" fill="#fff"/>
+      <path d="M30 28 L26 36 L38 28 Z" fill="#fff"/>
+      <text x="40" y="23" font-size="11" fill="#283593" text-anchor="middle" font-weight="bold">やれます!</text>
+    </symbol>
+
+    <!-- WDKC じゃがバター -->
+    <symbol id="pt-WDKC" viewBox="0 0 100 100">
+      <rect width="100" height="100" fill="#e65100"/>
+      <path d="M40 16 Q42 8 46 14 M52 16 Q54 8 58 14" stroke="#fff3e0" stroke-width="2.5" fill="none" stroke-linecap="round" opacity=".8"/>
+      <ellipse cx="50" cy="58" rx="32" ry="24" fill="#c68642"/>
+      <ellipse cx="50" cy="58" rx="32" ry="24" fill="none" stroke="#8d5a2b" stroke-width="2"/>
+      <path d="M26 52 Q50 66 74 52" stroke="#8d5a2b" stroke-width="2" fill="none"/>
+      <path d="M32 44 Q50 56 68 44" stroke="#ffe0b2" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <rect x="42" y="34" width="16" height="12" rx="2" fill="#ffd166"/>
+      <rect x="42" y="34" width="16" height="4" rx="2" fill="#ffe9a8"/>
+      <circle cx="38" cy="60" r="2" fill="#8d5a2b"/>
+      <circle cx="60" cy="64" r="2" fill="#8d5a2b"/>
+      <text x="50" y="94" font-size="10" fill="#fff" text-anchor="middle" font-weight="bold">ホクホク</text>
+    </symbol>
+
+    <!-- WDKJ オフ会0人(誰もいないベンチ) -->
+    <symbol id="pt-WDKJ" viewBox="0 0 100 100">
+      <rect width="100" height="100" fill="#546e7a"/>
+      <circle cx="76" cy="20" r="10" fill="#eceff1" opacity=".9"/>
+      <rect x="20" y="52" width="60" height="7" rx="2" fill="#8d6e63"/>
+      <rect x="20" y="42" width="60" height="6" rx="2" fill="#8d6e63"/>
+      <rect x="24" y="59" width="6" height="18" fill="#6d4c41"/>
+      <rect x="70" y="59" width="6" height="18" fill="#6d4c41"/>
+      <text x="50" y="30" font-size="20" fill="#ffd166" text-anchor="middle" font-weight="bold">0人</text>
+      <text x="50" y="93" font-size="9" fill="#fff" text-anchor="middle" font-weight="bold">今日はオフ会当日</text>
+    </symbol>
+
+    <!-- WISC 石破構文(終わらない巻物) -->
+    <symbol id="pt-WISC" viewBox="0 0 100 100">
+      <rect width="100" height="100" fill="#37474f"/>
+      <rect x="22" y="10" width="56" height="80" rx="4" fill="#f5f0e1"/>
+      <circle cx="22" cy="14" r="6" fill="#d7ccc8"/>
+      <circle cx="78" cy="14" r="6" fill="#d7ccc8"/>
+      <line x1="30" y1="24" x2="70" y2="24" stroke="#8d8468" stroke-width="2.5"/>
+      <line x1="30" y1="32" x2="70" y2="32" stroke="#8d8468" stroke-width="2.5"/>
+      <line x1="30" y1="40" x2="70" y2="40" stroke="#8d8468" stroke-width="2.5"/>
+      <line x1="30" y1="48" x2="70" y2="48" stroke="#8d8468" stroke-width="2.5"/>
+      <line x1="30" y1="56" x2="70" y2="56" stroke="#8d8468" stroke-width="2.5"/>
+      <line x1="30" y1="64" x2="70" y2="64" stroke="#8d8468" stroke-width="2.5"/>
+      <line x1="30" y1="72" x2="52" y2="72" stroke="#8d8468" stroke-width="2.5"/>
+      <text x="62" y="76" font-size="10" fill="#5d4037" font-weight="bold">...</text>
+      <text x="50" y="97" font-size="9" fill="#fff" text-anchor="middle" font-weight="bold">(結論は次回)</text>
+    </symbol>
+
+    <!-- WISJ 石破茂(演台とプラモ戦車) -->
+    <symbol id="pt-WISJ" viewBox="0 0 100 100">
+      <rect width="100" height="100" fill="#1a237e"/>
+      <rect x="30" y="46" width="40" height="34" fill="#5d4037"/>
+      <rect x="26" y="40" width="48" height="8" rx="2" fill="#6d4c41"/>
+      <rect x="36" y="20" width="28" height="16" rx="3" fill="#9fa8da"/>
+      <circle cx="50" cy="28" r="5" fill="#c5cae9"/>
+      <rect x="42" y="56" width="16" height="7" rx="2" fill="#7986cb"/>
+      <rect x="46" y="51" width="8" height="6" rx="1.5" fill="#7986cb"/>
+      <line x1="54" y1="54" x2="62" y2="54" stroke="#7986cb" stroke-width="2.5"/>
+      <circle cx="45" cy="64" r="2.4" fill="#3949ab"/>
+      <circle cx="50" cy="64" r="2.4" fill="#3949ab"/>
+      <circle cx="55" cy="64" r="2.4" fill="#3949ab"/>
+      <text x="50" y="94" font-size="9" fill="#fff" text-anchor="middle" font-weight="bold">なめられてたまるか</text>
+    </symbol>
+
+    <!-- WIKC 大物YouTubeｒ(トロフィーと全角ｒ) -->
+    <symbol id="pt-WIKC" viewBox="0 0 100 100">
+      <rect width="100" height="100" fill="#f9a825"/>
+      <path d="M34 20 L66 20 L64 44 Q60 56 50 56 Q40 56 36 44 Z" fill="#ffd166" stroke="#c49000" stroke-width="2"/>
+      <path d="M34 24 Q22 24 24 34 Q26 42 38 42" fill="none" stroke="#c49000" stroke-width="3"/>
+      <path d="M66 24 Q78 24 76 34 Q74 42 62 42" fill="none" stroke="#c49000" stroke-width="3"/>
+      <rect x="44" y="56" width="12" height="10" fill="#c49000"/>
+      <rect x="34" y="66" width="32" height="8" rx="2" fill="#8d6e00"/>
+      <text x="50" y="42" font-size="20" fill="#8d6e00" text-anchor="middle" font-weight="bold">ｒ</text>
+      <text x="50" y="92" font-size="9" fill="#5d4037" text-anchor="middle" font-weight="bold">自己評価100万人</text>
+    </symbol>
+
+    <!-- WIKJ 栗松帰国(飛行機) -->
+    <symbol id="pt-WIKJ" viewBox="0 0 100 100">
+      <rect width="100" height="100" fill="#01579b"/>
+      <circle cx="20" cy="18" r="8" fill="#e1f5fe" opacity=".7"/>
+      <circle cx="80" cy="30" r="6" fill="#e1f5fe" opacity=".5"/>
+      <path d="M18 66 L64 46 L78 40 Q86 38 84 44 L74 52 L34 74 L26 72 L40 60 L22 68 Z" fill="#eceff1"/>
+      <path d="M52 51 L58 38 L64 40 L60 48 Z" fill="#cfd8dc"/>
+      <path d="M14 78 Q30 70 44 66" stroke="#4fc3f7" stroke-width="2.5" fill="none" stroke-dasharray="4 4"/>
+      <text x="50" y="94" font-size="10" fill="#fff" text-anchor="middle" font-weight="bold">帰国</text>
+    </symbol>
+  </defs>
+</svg>
+
 <div class="app">
   <!-- ===== スタート画面 ===== -->
   <div id="screen-start" class="card">
-    <h1>🧠 クソどうでもいい<br>性格診断</h1>
-    <p class="subtitle">MBTIっぽいけど1ミリも科学的根拠がない16タイプ診断<br>所要時間:約2分(人生の無駄)</p>
-    <button class="btn primary" onclick="startQuiz()">診断をはじめる(自己責任)</button>
-    <p class="footer-note">※結果に文句を言われても知りません<br>※友情が壊れても知りません</p>
+    <h1>🧠 身内ネタ性格診断</h1>
+    <p class="subtitle">MBTIっぽいけど科学的根拠は0人<br>全12問で、お前が「どのネタ」なのかが判明する</p>
+    <div class="cast-grid" id="cast"></div>
+    <button class="btn primary" onclick="startQuiz()">診断をはじめる(誠に遺憾です)</button>
+    <p class="footer-note">※結果に文句を言うならお前が作れ<br>※友情が壊れても知りません</p>
   </div>
 
   <!-- ===== 質問画面 ===== -->
@@ -144,6 +401,7 @@
 
   <!-- ===== 結果画面 ===== -->
   <div id="screen-result" class="card hidden">
+    <div class="portrait"><svg id="rimg"><use id="ruse" href=""/></svg></div>
     <div id="rcode" class="result-code"></div>
     <div id="rname" class="result-name"></div>
     <div id="rtagline" class="result-tagline"></div>
@@ -156,6 +414,11 @@
     <div class="section">
       <h3>■ 取扱説明書</h3>
       <p id="rmanual"></p>
+    </div>
+
+    <div class="section">
+      <h3>■ 元ネタ解説(にわか向け)</h3>
+      <div class="neta-box" id="rneta"></div>
     </div>
 
     <div class="section">
@@ -172,7 +435,7 @@
     </div>
 
     <button class="btn primary" onclick="copyResult()">結果をコピーして自慢する</button>
-    <button class="btn" style="text-align:center" onclick="location.reload()">もう一回やる(結果が気に入らない人向け)</button>
+    <button class="btn" style="text-align:center" onclick="location.reload()">もう一回やる(結果が誠に遺憾だった人向け)</button>
   </div>
 </div>
 <div id="toast" class="toast">コピーした!グループLINEに貼れ📋</div>
@@ -180,159 +443,174 @@
 <script>
 /* ============================================================
  * ★ 身内ネタカスタマイズゾーン ★
- * ここから下の QUESTIONS と TYPES を書き換えれば
- * 完全オリジナルの身内専用診断になります。
+ * QUESTIONS と TYPES を書き換えれば自分たち専用になります。
  *
  * 4つの軸(MBTIのパロディ):
- *   軸0: P(パリピ)   vs O(お通夜)   … テンション
- *   軸1: N(脳筋)     vs R(屁理屈)   … 思考回路
- *   軸2: S(散財)     vs K(ケチ)     … 金銭感覚
- *   軸3: C(遅刻魔)   vs J(時間の奴隷) … 時間感覚
+ *   軸0: B(ブンブン系=陽) vs W(和室界隈=陰)   … テンション
+ *   軸1: D(空気砲=即実行)  vs I(構文=まず語る) … 思考回路
+ *   軸2: S(大物=散財)      vs K(無課金=堅実)   … 金銭感覚
+ *   軸3: C(貝塚時間=ルーズ) vs J(毎日投稿=きっちり) … 時間感覚
  * ============================================================ */
 
 const AXES = [
-  { hi: "P", lo: "O", hiLabel: "パリピ",   loLabel: "お通夜" },
-  { hi: "N", lo: "R", hiLabel: "脳筋",     loLabel: "屁理屈" },
-  { hi: "S", lo: "K", hiLabel: "散財",     loLabel: "ケチ" },
-  { hi: "C", lo: "J", hiLabel: "遅刻魔",   loLabel: "時間の奴隷" },
+  { hi: "B", lo: "W", hiLabel: "ブンブン系(陽)", loLabel: "和室界隈(陰)" },
+  { hi: "D", lo: "I", hiLabel: "空気砲(即実行)", loLabel: "構文(まず語る)" },
+  { hi: "S", lo: "K", hiLabel: "大物(散財)", loLabel: "無課金(堅実)" },
+  { hi: "C", lo: "J", hiLabel: "貝塚時間(ルーズ)", loLabel: "毎日投稿(きっちり)" },
 ];
 
 /* axis: どの軸の質問か(0〜3)
- * choices: [選択肢テキスト, スコア] スコア +1 = 前者(P/N/S/C)寄り, -1 = 後者寄り, 0 = どっちつかず */
+ * choices: [選択肢テキスト, スコア] +1 = 前者(B/D/S/C)寄り, -1 = 後者寄り, 0 = 中間 */
 const QUESTIONS = [
   // ---- 軸0: テンション ----
-  { axis: 0, text: "金曜の夜、友達から「今から飲まん?」とLINEが来た。", choices: [
-    ["もう玄関にいる", 1],
-    ["「誰が来るか」による(メンバー審査)", 0],
-    ["既読を付けずに翌朝「ごめん寝てた」", -1],
+  { axis: 0, text: "もしYouTubeを始めたら、記念すべき1本目は?", choices: [
+    ["「ブンブンハローYouTube!」全力挨拶からの顔出しダンス", 1],
+    ["顔出しなしのゲーム実況。声も小さめ", 0],
+    ["和室で商品レビュー。BGMなし。生活音あり", -1],
   ]},
-  { axis: 0, text: "カラオケでの立ち回りは?", choices: [
-    ["1曲目から全力。タンバリンは俺の楽器", 1],
-    ["盛り上がってきたら本気出す(出さないこともある)", 0],
-    ["ドリンクバー往復係に徹する", -1],
+  { axis: 0, text: "飲み会で会話が3秒途切れた。あなたは?", choices: [
+    ["デカい声で新しい話題をぶち込む", 1],
+    ["誰かが喋り出すのをニコニコして待つ", 0],
+    ["心を無にしてじゃがバターを見つめる", -1],
   ]},
-  { axis: 0, text: "旅行の集合写真、あなたはどこにいる?", choices: [
-    ["真ん中で変なポーズしてる", 1],
-    ["普通に写ってる(奇跡的に目を閉じてる)", 0],
-    ["撮影係。つまり写ってない", -1],
+  { axis: 0, text: "自分でオフ会を開催したら、何人来ると思う?", choices: [
+    ["呼んでないやつまで来て会場に入りきらない", 1],
+    ["仲いい5人くらいは来てくれるはず", 0],
+    ["0人。なお会場の下見は済ませてある", -1],
   ]},
   // ---- 軸1: 思考回路 ----
-  { axis: 1, text: "組み立て家具を買った。説明書は?", choices: [
-    ["読まない。パーツが余っても「予備」と言い張る", 1],
-    ["詰んでから読む", 0],
-    ["読む前にレビューとYouTube解説を3本見る", -1],
+  { axis: 1, text: "目の前に段ボール製の空気砲がある。どうする?", choices: [
+    ["説明を聞く前に撃つ。人に向けて", 1],
+    ["一応使い方を聞いてから撃つ", 0],
+    ["撃つ前に渦輪(うずわ)の原理について語り出す", -1],
   ]},
-  { axis: 1, text: "友達と口論になった。あなたの武器は?", choices: [
-    ["声量", 1],
-    ["「まあいいや」と言いながら根に持つ", 0],
-    ["3日後に完璧な反論を思いついて悔しがる", -1],
+  { axis: 1, text: "口喧嘩が始まった。あなたの戦い方は?", choices: [
+    ["声量と勢い。内容は後から考える", 1],
+    ["「誠に遺憾です」とだけ言って離脱する", 0],
+    ["相手が疲れて帰るまで論点を増やし続ける", -1],
   ]},
-  { axis: 1, text: "「とりあえずやってみよう」と言われたら?", choices: [
-    ["もうやってる", 1],
-    ["人がやるのを見てから決める", 0],
-    ["まず失敗した場合のシミュレーションを始める", -1],
+  { axis: 1, text: "新しい家電を買った。説明書は?", choices: [
+    ["読まない。壊れたらその時考える", 1],
+    ["エラーが出てから初めて開く", 0],
+    ["購入前にレビューと解説動画で全て履修済み", -1],
   ]},
   // ---- 軸2: 金銭感覚 ----
-  { axis: 2, text: "給料日(またはバイト代が入った日)の行動は?", choices: [
-    ["その日のうちに何か買ってる。記憶にないけど", 1],
-    ["ちょっといい飯だけ食って終わり", 0],
-    ["残高スクショして眺めてニヤニヤする", -1],
+  { axis: 2, text: "給料日(バイト代が入った日)。その日のうちに?", choices: [
+    ["開封動画が撮れる量の買い物をしている", 1],
+    ["ちょっといい飯を食べて満足する", 0],
+    ["残高を確認してそっとアプリを閉じる(増えてる。良い。)", -1],
   ]},
-  { axis: 2, text: "飲み会の割り勘で1人あたり4,980円。あなたは?", choices: [
-    ["「5,000円でいいよ!」(端数を制する者)", 1],
-    ["普通に払う", 0],
-    ["20円の返却を静かに、しかし確実に待つ", -1],
+  { axis: 2, text: "ガチャで爆死した。次の行動は?", choices: [
+    ["「何をしてんの?」と言いながら追い課金", 1],
+    ["天井までの金額を計算して静かに撤退", 0],
+    ["そもそも無課金。石は配布で貯める派", -1],
   ]},
-  { axis: 2, text: "サブスク、いくつ入ってる?", choices: [
-    ["把握してない(それが答え)", 1],
-    ["2〜3個。たまに見直す", 0],
-    ["無料トライアルを解約日カレンダー管理で乗り継いでいる", -1],
+  { axis: 2, text: "友達へのプレゼント、あなたの相場は?", choices: [
+    ["気づいたら諭吉が数枚消えている。愛なので", 1],
+    ["3,000円前後。外さないやつ", 0],
+    ["手作り(材料費380円)。気持ちなので", -1],
   ]},
   // ---- 軸3: 時間感覚 ----
-  { axis: 3, text: "「12時に駅集合ね」。あなたが駅に着くのは?", choices: [
-    ["12時15分(電車が遅れたことにする)", 1],
-    ["12時ぴったり(ギリギリ走ってくる)", 0],
-    ["11時40分(集合場所の下見が終わっている)", -1],
-  ]},
-  { axis: 3, text: "夏休みの宿題(または仕事の締切)スタイルは?", choices: [
-    ["最終日の夜に泣きながらやる。毎回", 1],
-    ["中盤で一回焦って、また忘れる", 0],
-    ["初日に終わらせて優越感に浸る", -1],
+  { axis: 3, text: "「12時に駅集合ね」。あなたが着くのは?", choices: [
+    ["12:20「ごめん、電車が遅れた(嘘)」", 1],
+    ["11:59に改札から走ってくる", 0],
+    ["11:30着。オフ会0人の教訓により下見も完了", -1],
   ]},
   { axis: 3, text: "「あと5分で出る」と言ってから実際に家を出るまで?", choices: [
-    ["45分(なぜか風呂に入り始める)", 1],
-    ["15分(スマホが悪い)", 0],
-    ["5分は5分。むしろ4分", -1],
+    ["45分。なぜか部屋の掃除を始めてしまった", 1],
+    ["15分。スマホが悪い", 0],
+    ["5分は5分。むしろ玄関で靴を履きながら言っている", -1],
+  ]},
+  { axis: 3, text: "夏休みの宿題(または仕事の締切)は?", choices: [
+    ["最終日の朝、まだ1文字も書いていない", 1],
+    ["最終週に泣きながら終わらせる。毎年", 0],
+    ["初日に終わらせて毎日投稿並みの安定感で遊ぶ", -1],
   ]},
 ];
 
 /* 16タイプ辞書。コードは 軸0軸1軸2軸3 の順。
  * best / worst には実在するタイプコードを入れると相性欄に名前が出ます。 */
 const TYPES = {
-  PNSC: { name: "歩く治外法権", tagline: "ルール?聞いたことないですね",
-    desc: "ノリで生き、ノリで金を溶かし、ノリで遅刻する。それでもなぜか許されるのは、本人に一切の悪意がないから。台風みたいな人間。",
-    manual: "怒っても無駄です。楽しいことをチラつかせて誘導しましょう。財布は預からないでください、あなたが破産します。",
-    best: "ORKJ", worst: "PRKJ" },
-  PNSJ: { name: "永遠の幹事", tagline: "飲み会の日程調整が生きがい",
-    desc: "テンション高い、行動力ある、金払いがいい、時間も守る。つまり幹事をやらされ続ける運命。本人もまんざらでもない。",
-    manual: "「ありがとう」と「ごちそうさま」を言っておけば一生幹事をしてくれます。たまには労ってください。",
-    best: "ONSJ", worst: "ONKC" },
-  PNKC: { name: "口だけ番長", tagline: "「今度マジで行こうや」(行かない)",
-    desc: "ノリは最高、計画性はゼロ、財布は固い、時間はルーズ。「絶対行く」の的中率は天気予報以下。でも憎めないのが一番タチ悪い。",
-    manual: "この人の「今度」は挨拶です。本当に来てほしいときは前日と当日朝に電話してください。",
-    best: "ORSJ", worst: "ORKJ" },
-  PNKJ: { name: "体育会系お母さん", tagline: "「ほら!行くよ!水筒持った!?」",
-    desc: "声がデカくて仕切りたがりで、なぜか節約上手で時間に厳しい。旅行に一人いると全てがスムーズに進むが、うるさい。",
-    manual: "基本従っておけば快適です。反抗すると集合時間が15分早められます。",
-    best: "PNSC", worst: "ORKC" },
-  PRSC: { name: "天才(自称)", tagline: "理論は完璧、実行はしない",
-    desc: "パーティーの中心で語り、壮大な理論を展開し、勢いで課金し、締切は守らない。アイデアだけなら世界を3回救ってる。",
-    manual: "話は面白いので聞いてあげてください。ただし「で、いつやるの?」とは聞かないこと。フリーズします。",
-    best: "ORKJ", worst: "PRKJ" },
-  PRSJ: { name: "意識高い系の末路", tagline: "朝活・筋トレ・積立NISA(全部SNSに載せる)",
-    desc: "社交的で理屈っぽくて自己投資に金を惜しまず、スケジュール帳がカラフル。周りは若干引いてるが、5年後一番成功してそうなのも事実。",
-    manual: "セミナーには誘われても行かなくて大丈夫です。「すごいね」だけで満足します。",
-    best: "ONKC", worst: "PNKC" },
-  PRKC: { name: "屁理屈ソムリエ", tagline: "「それ、論点ずれてない?」が口癖",
-    desc: "場は盛り上げるくせに、議論になると急に細かい。奢らないし遅刻する。でも謝罪のロジックだけは毎回完璧。",
-    manual: "口喧嘩で勝とうとしないでください。時間の無駄です。食べ物を与えると大人しくなります。",
-    best: "ONSJ", worst: "PNKJ" },
-  PRKJ: { name: "歩くコンプラ研修", tagline: "楽しい場を正論で制圧する",
-    desc: "社交的で頭が切れて堅実で時間厳守。完璧では?と思いきや、飲み会で「それハラスメントですよ」と言い出して場を凍らせるタイプ。",
-    manual: "正しいことしか言いません。正しさに疲れた日は距離を取りましょう。頼ると死ぬほど有能です。",
-    best: "PNSC", worst: "PRSC" },
-  ONSC: { name: "奇跡の置物", tagline: "いるだけで場がなんか和む",
-    desc: "テンション低め、深く考えず、金遣いは謎に荒く、遅刻する。何もしていないのに全員から愛される、理屈で説明できない存在。",
-    manual: "そっとしておいてください。餌付けは有効です。たまに爆買いしてるのは見なかったことに。",
-    best: "PNKJ", worst: "PRKJ" },
-  ONSJ: { name: "無言の課金者", tagline: "静かに推しに全額溶かす",
-    desc: "物静かで単純で、時間はきっちり守る堅実な人…と思いきや、推し・ガチャ・限定グッズにだけ財布が完全崩壊する。",
-    manual: "推しの話を振ると3時間止まりません。覚悟がある時だけ振ってください。",
-    best: "PNSJ", worst: "PRKC" },
-  ONKC: { name: "省エネモード人間", tagline: "人生の消費電力が最小",
-    desc: "動かない、考えない、使わない、急がない。省エネの極み。だが締切直前だけ人類最高効率を叩き出す謎のポテンシャルを持つ。",
-    manual: "急かしても速度は変わりません。締切だけ正確に伝えて放置が最適解です。",
-    best: "PNSJ", worst: "PNSC" },
-  ONKJ: { name: "地蔵オブザイヤー", tagline: "気づいたらそこにいる。ずっといる",
-    desc: "無口で堅実で時間に正確。飲み会では一言も発さないのに、解散時「今日楽しかった」と言う。多分本当に楽しかったのだろう。",
-    manual: "無理に話を振らなくて大丈夫です。本人なりに参加しています。存在を忘れて店を出ないようにだけ注意。",
-    best: "PNSC", worst: "PRSC" },
-  ORSC: { name: "夜行性の賢者", tagline: "深夜2時にだけ饒舌になる",
-    desc: "昼間は無気力、夜になると急に哲学と持論が止まらない。通販の深夜ポチり率も高い。遅刻の言い訳が毎回文学的。",
-    manual: "大事な相談は深夜にしてください。昼のこの人は別人(劣化版)です。",
-    best: "PNSJ", worst: "PNKJ" },
-  ORSJ: { name: "隠れ参謀", tagline: "表に出ないが全部この人が決めてる",
-    desc: "静かで理屈屋で、金も時間もきっちり管理。グループの旅行計画、実はこの人のスプレッドシートで動いている。",
-    manual: "手柄を横取りしないでください。静かにキレて、次の旅がグダグダになります。",
-    best: "PNKC", worst: "PNSC" },
-  ORKC: { name: "布団の哲学者", tagline: "「行けたら行く」界の重鎮",
-    desc: "外に出ない、屁理屈は一流、金は使わない、時間は守らない。布団の中から人生を語る。なお人生はまだ始まっていない。",
-    manual: "外に連れ出すには2週間前からの予告と当日の物理的回収が必要です。",
-    best: "PNSJ", worst: "ORKJ" },
-  ORKJ: { name: "人間Excel", tagline: "感情より先に集計が終わる",
-    desc: "冷静沈着、完璧な理論、揺るがない倹約、狂いのない時間管理。割り勘計算は小数点以下まで一瞬。信頼はできるが、たまに怖い。",
-    manual: "曖昧な誘い方をすると「目的は?」と返ってきます。5W1Hを揃えてから誘いましょう。",
-    best: "PNSC", worst: "PNKC" },
+  BDSC: { name: "チンパンジー", tagline: "ウホウホで全て解決",
+    desc: "理性より本能。楽しい→叫ぶ、腹減った→食う、ムカつく→物を投げる。チンパンジーの握力は人間の数倍と言われるが、あなたのテンションも人間の数倍。",
+    manual: "バナナ的な何か(揚げ物)を与えると落ち着きます。檻(門限)は意味を成しません。",
+    neta: "ネットでは「理性を捨てた人間」の比喩として万能。この診断では最も原始的にして最も幸福なタイプ。",
+    best: "WDKC", worst: "WISC" },
+  BDSJ: { name: "ヒカキン", tagline: "ブンブンハロー人生",
+    desc: "何をやらせても全力、企画力の鬼、そして絶対に休まない。10年以上毎日投稿できる人間はもはや人間ではない。グループに一人いると企画が全部回る。",
+    manual: "褒めると伸びます。無限に伸びます。たまに素に戻って「何をしてんの?」と言うので、その瞬間を録音しましょう。",
+    neta: "日本YouTube界の王。挨拶「ブンブンハローYouTube」、モンスト実況の「何をしてんの?」など語録はヒカマニ(音MAD文化)として今も増殖中。",
+    best: "BISJ", worst: "WIKC" },
+  BDKC: { name: "栗松鉄平", tagline: "そうでやんすねぇ〜",
+    desc: "主役ではない。エースでもない。でも、いないと寂しい。イナズマイレブンの伝説的モブ・栗松鉄平と同じく、あなたはベンチから世界を支えるムードメーカー。",
+    manual: "活躍の場を与えなくても勝手に楽しそうにしています。ただし旅行に誘い忘れると静かに帰国します。",
+    neta: "イナズマイレブン雷門中の初期メンバー。語尾「〜でやんす」が特徴。海外編で出番が消えたことから「栗松帰国」ミームが誕生し、主役より愛されるモブに。",
+    best: "BDSJ", worst: "WIKJ" },
+  BDKJ: { name: "米村でんじろう", tagline: "はい、いくよ〜?(ドンッ)",
+    desc: "「とりあえずやってみよう」を科学と呼ぶ人。段ボールとガムテープで空気砲を作る低コスト錬金術師。飲み会でも謎の実験を始めて、なぜか一番ウケる。",
+    manual: "「それどういう原理?」と聞くと目を輝かせて3倍喋ります。材料費は割り勘にしてあげてください。",
+    neta: "サイエンスプロデューサー。代表作の空気砲は段ボール製で、ドラえもんの道具から命名。日本の子供全員が一度は通る道。",
+    best: "BDSC", worst: "WISJ" },
+  BISC: { name: "バキ童", tagline: "誠に遺憾です",
+    desc: "街頭インタビュー一発で国民的存在になった男・ぐんぴぃと同じ「正直すぎる」タイプ。隠せばいいことを全部言う。そしてなぜか全員に愛される。",
+    manual: "本人が一番自虐するので周りがフォローする必要はありません。人生の節目はちゃんと祝ってあげてください。",
+    neta: "お笑いコンビ春とヒコーキのぐんぴぃ。2019年AbemaのインタビューでのB発言「バキバキ童貞です」「誠に遺憾です」が大バズり。2025年、実質的な卒業を報告。",
+    best: "WDSJ", worst: "BIKJ" },
+  BISJ: { name: "セイキン", tagline: "イェイイェイ↑ウォウウォウ↑",
+    desc: "派手な相方の隣で、実は一番器用なタイプ。歌える、作れる、DIYできる、しかも温厚。「兄のほうが好き」というファンを静かに増やし続ける。",
+    manual: "主役を譲りがちなので、たまにセンターに置いてあげてください。照れながらちゃんとこなします。",
+    neta: "ヒカキンの実兄。歌·DIY·レビューの万能系YouTuber。弟同様セイキンマニア(音MAD)の素材としても愛される、日本一有名な「お兄ちゃん」。",
+    best: "BDSJ", worst: "BDSC" },
+  BIKC: { name: "何を四天王", tagline: "何をしてんの?",
+    desc: "友達の奇行を見た回数日本一、「ツッコミしか勝たん」枠。あなたがいないとこのグループのボケは全て床に落ちて誰にも拾われない。",
+    manual: "ツッコミは愛情表現です。ボケを供給し続けてください。供給が止まると自分がボケ始めて事故ります。",
+    neta: "ヒカキンがモンスト実況でガチャ結果に放った「何をしてんの?」が「何を四天王?」に聞こえたことから生まれたヒカマニ語録。派生に「何一天王(何言ってんの)」など。",
+    best: "WDSC", worst: "WISC" },
+  BIKJ: { name: "舐められてたまるか", tagline: "言うべきことは言う",
+    desc: "普段は温厚なのに、譲れない一線を越えられた瞬間、急に交渉モードが起動するタイプ。割り勘の端数、ドタキャンの常習犯、そういうものと戦い続けている。",
+    manual: "この人の「それはちょっと」は最終警告です。じゃがバターでも差し出して和平交渉に入りましょう。",
+    neta: "石破茂首相が2025年、対米関税交渉について語った「なめられてたまるか」が発端。国会からSNSまで広がった強気ワード。",
+    best: "WISJ", worst: "BDSC" },
+  WDSC: { name: "syamu", tagline: "文句を言うならお前が作れ",
+    desc: "和室界隈の帝王。自己評価は大物、実績はオフ会0人。でも何度失敗しても復活する不死身メンタルだけは本物。あなたの「今度マジでやるわ」は挨拶。",
+    manual: "夢を語り始めたら「ええやん」とだけ返してください。実行に移ることはないので安心です。",
+    neta: "大物YouTubeｒ・syamu_game。オフ会を開催したら誰も来なかった「オフ会0人事件」で伝説となり、アンチへの返し「文句を言うならお前が作れ」など語録多数。和室界隈の元祖。",
+    best: "BIKC", worst: "BDSJ" },
+  WDSJ: { name: "佐藤拓也", tagline: "やれます!",
+    desc: "静かなのに、無茶振りへの返事だけは食い気味な引き受け職人。「できる?」と聞かれた瞬間「やれます!」と即答し、そして本当にやれてしまう。",
+    manual: "「やれます!」は反射なので、本当に無理そうな時は周りが止めてあげてください。納期は絶対に守ります。",
+    neta: "声優・佐藤拓也。ラジオ番組『佐藤拓也の「やれます!」』『ちょっとやってみて!!』の人。イケボで何でも引き受けるスタイルに敬意を表してこのタイプ名に。",
+    best: "BISC", worst: "WDSC" },
+  WDKC: { name: "じゃがバター", tagline: "ホクホク。以上。",
+    desc: "祭りの屋台で一番地味で一番うまいアレ。主張しない、映えない、でも全員がなんだかんだ買う。あなたは居るだけで場の温度を2度上げる炭水化物系ヒーラー。",
+    manual: "何もしなくていいです。そこにいてください。バター(褒め言葉)を乗せると溶けます。",
+    neta: "北海道が生んだ最強のシンプル飯。この診断では「何もしていないのに全員に愛される」枠。実質最強タイプという説がある。",
+    best: "BDSC", worst: "BDKJ" },
+  WDKJ: { name: "オフ会0人", tagline: "今日はオフ会、当日ですけども",
+    desc: "準備は完璧、会場入りは誰より早い、そして誰も来ない。幹事をやると日程調整アプリだけが賑わう。でもめげずに次を企画する、その心はもう尊い。",
+    manual: "参加ボタンを押したら本当に行ってあげてください。この人の「大丈夫、慣れてるから」は慣れてはいけない類のものです。",
+    neta: "syamu伝説の中核。「24人の女性が来る」というコメントを信じてオフ会を開催、結果0人。約7分間「集合場所わかんなかったんかな?」と待ち続けた映像は日本ネット史の教科書に載る。",
+    best: "WDKC", worst: "BDKC" },
+  WISC: { name: "石破構文", tagline: "議論するかどうかを、まず議論しなければならない",
+    desc: "丁寧、誠実、そして異常に長い。あなたのLINEは常にスクロールが必要で、要約すると3行になる。結論は、ない。ないというわけではないが、あるとも言い切れない。",
+    manual: "「つまり?」と聞いても長くなるだけです。選択肢を2つ提示すると文が止まります。",
+    neta: "石破茂首相の、修飾語が多く結論までが異常に長い話し方がミーム化したもの。丁寧なのに何も答えていない、を実現する高等技術。ビジネスメールへの応用例も存在する。",
+    best: "WISJ", worst: "BDSC" },
+  WISJ: { name: "石破茂", tagline: "なめられてたまるか(本人)",
+    desc: "防衛とプラモとカレーをこよなく愛するオタク気質の理論派。飲み会では静かなのに、好きな分野のスイッチが入ると誰にも止められない解説が始まる。",
+    manual: "専門分野の質問は覚悟してからしてください。納期・約束・義理はきっちり守る、実は超信頼できる人です。",
+    neta: "第102代内閣総理大臣。軍事オタク・プラモ愛好家としても有名で、独特の言い回しは「石破構文」として親しまれ(?)、関税交渉では「なめられてたまるか」の名言を残した。",
+    best: "BIKJ", worst: "BDKC" },
+  WIKC: { name: "大物YouTubeｒ", tagline: "自己評価だけ登録者100万人",
+    desc: "実績より先に風格が完成してしまったタイプ。「俺が本気出したら」が口癖だが、本気を出した記録は現存しない。なお「ｒ」が全角なのは様式美。",
+    manual: "夢の話は最後まで聞いてあげてください。それが供養になります。",
+    neta: "syamuを揶揄して付いた称号「大物YouTubeｒ」。末尾の全角「ｒ」はsyamu本人の誤字が起源とされ、半角で書くと逆に怒られる。",
+    best: "WDSC", worst: "BDSJ" },
+  WIKJ: { name: "栗松帰国", tagline: "気づいたら、いない",
+    desc: "飲み会の集合写真に写っていない率100%。終電ではなく夕方に帰る。参加はする、楽しみもする、しかし気配を消して確実に帰る。定時退社界の頂点。",
+    manual: "「もう帰るの?」は禁句です。本人の中では十分参加しました。次回もちゃんと呼んであげてください(来ます。そして帰ります)。",
+    neta: "イナズマイレブン海外編で栗松の出番が消滅したことを「出番がない=帰国した」とファンがネタにしたミーム。いつの間にかいなくなる人への最大級の賛辞。",
+    best: "WDKJ", worst: "BDSJ" },
 };
 
 /* ============================================================
@@ -341,6 +619,12 @@ const TYPES = {
 let current = 0;
 const scores = [0, 0, 0, 0];
 const shuffled = [...QUESTIONS].sort(() => Math.random() - 0.5);
+
+// スタート画面に16タイプの顔見せグリッド
+const castBox = document.getElementById("cast");
+Object.keys(TYPES).forEach(code => {
+  castBox.innerHTML += `<svg viewBox="0 0 100 100" role="img" aria-label="${TYPES[code].name}"><use href="#pt-${code}"/></svg>`;
+});
 
 function startQuiz() {
   document.getElementById("screen-start").classList.add("hidden");
@@ -381,11 +665,13 @@ function showResult() {
   const code = AXES.map((a, i) => scores[i] >= 0 ? a.hi : a.lo).join("");
   const t = TYPES[code];
 
+  document.getElementById("ruse").setAttribute("href", "#pt-" + code);
   document.getElementById("rcode").textContent = code;
   document.getElementById("rname").textContent = t.name;
   document.getElementById("rtagline").textContent = t.tagline;
   document.getElementById("rdesc").textContent = t.desc;
   document.getElementById("rmanual").textContent = t.manual;
+  document.getElementById("rneta").textContent = t.neta;
   document.getElementById("rbest").textContent = `${TYPES[t.best].name}(${t.best})`;
   document.getElementById("rworst").textContent = `${TYPES[t.worst].name}(${t.worst})`;
 
@@ -410,11 +696,11 @@ function showResult() {
   });
 
   window._resultText =
-    `【クソどうでもいい性格診断】\n` +
+    `【身内ネタ性格診断】\n` +
     `私は「${code}:${t.name}」でした🧠\n` +
     `→ ${t.tagline}\n` +
     `💖相性◎: ${TYPES[t.best].name} / 💀相性✕: ${TYPES[t.worst].name}\n` +
-    `お前らもやれ`;
+    `文句を言うならお前もやれ`;
 }
 
 function copyResult() {
