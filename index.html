@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>クソどうでもいい性格診断【MBTI風】</title>
+<style>
+  :root {
+    --bg: #1a1333;
+    --card: #241b47;
+    --accent: #ff5c8a;
+    --accent2: #ffd166;
+    --accent3: #4cc9f0;
+    --text: #f5f0ff;
+    --muted: #b3a8d9;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic", Meiryo, sans-serif;
+    background: var(--bg);
+    background-image:
+      radial-gradient(circle at 20% 20%, rgba(255,92,138,.15), transparent 40%),
+      radial-gradient(circle at 80% 70%, rgba(76,201,240,.12), transparent 40%);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 24px 16px 64px;
+  }
+  .app { width: 100%; max-width: 560px; }
+  .card {
+    background: var(--card);
+    border-radius: 20px;
+    padding: 28px 24px;
+    box-shadow: 0 8px 32px rgba(0,0,0,.35);
+  }
+  h1 {
+    font-size: 1.5rem;
+    line-height: 1.4;
+    text-align: center;
+    margin-bottom: 8px;
+  }
+  .subtitle { text-align: center; color: var(--muted); font-size: .85rem; margin-bottom: 24px; }
+  .btn {
+    display: block;
+    width: 100%;
+    padding: 16px;
+    margin-top: 12px;
+    border: none;
+    border-radius: 14px;
+    font-size: 1rem;
+    font-weight: bold;
+    font-family: inherit;
+    cursor: pointer;
+    background: #342a5e;
+    color: var(--text);
+    text-align: left;
+    transition: transform .1s, background .15s;
+    line-height: 1.5;
+  }
+  .btn:hover, .btn:active { transform: scale(.98); background: #453879; }
+  .btn.primary {
+    background: linear-gradient(135deg, var(--accent), #c94cf0);
+    text-align: center;
+    font-size: 1.1rem;
+  }
+  .progress-wrap { height: 8px; background: #342a5e; border-radius: 4px; margin-bottom: 20px; overflow: hidden; }
+  .progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width .3s; }
+  .q-count { color: var(--muted); font-size: .8rem; margin-bottom: 8px; }
+  .q-text { font-size: 1.15rem; font-weight: bold; line-height: 1.6; margin-bottom: 20px; min-height: 3.2em; }
+  .hidden { display: none; }
+
+  /* 結果画面 */
+  .result-code {
+    text-align: center;
+    font-size: 2.4rem;
+    font-weight: 900;
+    letter-spacing: .1em;
+    background: linear-gradient(90deg, var(--accent2), var(--accent), var(--accent3));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 4px;
+  }
+  .result-name { text-align: center; font-size: 1.4rem; font-weight: bold; margin-bottom: 4px; }
+  .result-tagline { text-align: center; color: var(--muted); font-size: .85rem; margin-bottom: 20px; }
+  .section { margin-top: 20px; }
+  .section h3 {
+    font-size: .8rem;
+    color: var(--accent2);
+    letter-spacing: .15em;
+    margin-bottom: 8px;
+  }
+  .section p { font-size: .95rem; line-height: 1.8; }
+  .axis { margin-top: 14px; }
+  .axis-labels { display: flex; justify-content: space-between; font-size: .8rem; margin-bottom: 4px; }
+  .axis-labels .win { font-weight: bold; color: var(--accent2); }
+  .axis-bar { height: 10px; background: #342a5e; border-radius: 5px; overflow: hidden; }
+  .axis-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent3)); border-radius: 5px; transition: width .8s ease-out; }
+  .compat { display: flex; gap: 12px; margin-top: 8px; }
+  .compat > div {
+    flex: 1;
+    background: #342a5e;
+    border-radius: 12px;
+    padding: 12px;
+    font-size: .85rem;
+    line-height: 1.6;
+  }
+  .compat .label { font-size: .7rem; color: var(--muted); display: block; margin-bottom: 4px; }
+  .footer-note { text-align: center; color: var(--muted); font-size: .75rem; margin-top: 24px; line-height: 1.8; }
+  .toast {
+    position: fixed;
+    bottom: 24px; left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--accent);
+    color: #fff;
+    padding: 10px 24px;
+    border-radius: 999px;
+    font-size: .9rem;
+    font-weight: bold;
+    transition: transform .3s;
+    z-index: 10;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- ===== スタート画面 ===== -->
+  <div id="screen-start" class="card">
+    <h1>🧠 クソどうでもいい<br>性格診断</h1>
+    <p class="subtitle">MBTIっぽいけど1ミリも科学的根拠がない16タイプ診断<br>所要時間:約2分(人生の無駄)</p>
+    <button class="btn primary" onclick="startQuiz()">診断をはじめる(自己責任)</button>
+    <p class="footer-note">※結果に文句を言われても知りません<br>※友情が壊れても知りません</p>
+  </div>
+
+  <!-- ===== 質問画面 ===== -->
+  <div id="screen-quiz" class="card hidden">
+    <div class="progress-wrap"><div id="progress" class="progress-bar"></div></div>
+    <div id="qcount" class="q-count"></div>
+    <div id="qtext" class="q-text"></div>
+    <div id="answers"></div>
+  </div>
+
+  <!-- ===== 結果画面 ===== -->
+  <div id="screen-result" class="card hidden">
+    <div id="rcode" class="result-code"></div>
+    <div id="rname" class="result-name"></div>
+    <div id="rtagline" class="result-tagline"></div>
+
+    <div class="section">
+      <h3>■ どんな人?</h3>
+      <p id="rdesc"></p>
+    </div>
+
+    <div class="section">
+      <h3>■ 取扱説明書</h3>
+      <p id="rmanual"></p>
+    </div>
+
+    <div class="section">
+      <h3>■ パラメータ</h3>
+      <div id="raxes"></div>
+    </div>
+
+    <div class="section">
+      <h3>■ 相性</h3>
+      <div class="compat">
+        <div><span class="label">💖 ベストコンビ</span><span id="rbest"></span></div>
+        <div><span class="label">💀 一緒に組むな</span><span id="rworst"></span></div>
+      </div>
+    </div>
+
+    <button class="btn primary" onclick="copyResult()">結果をコピーして自慢する</button>
+    <button class="btn" style="text-align:center" onclick="location.reload()">もう一回やる(結果が気に入らない人向け)</button>
+  </div>
+</div>
+<div id="toast" class="toast">コピーした!グループLINEに貼れ📋</div>
+
+<script>
+/* ============================================================
+ * ★ 身内ネタカスタマイズゾーン ★
+ * ここから下の QUESTIONS と TYPES を書き換えれば
+ * 完全オリジナルの身内専用診断になります。
+ *
+ * 4つの軸(MBTIのパロディ):
+ *   軸0: P(パリピ)   vs O(お通夜)   … テンション
+ *   軸1: N(脳筋)     vs R(屁理屈)   … 思考回路
+ *   軸2: S(散財)     vs K(ケチ)     … 金銭感覚
+ *   軸3: C(遅刻魔)   vs J(時間の奴隷) … 時間感覚
+ * ============================================================ */
+
+const AXES = [
+  { hi: "P", lo: "O", hiLabel: "パリピ",   loLabel: "お通夜" },
+  { hi: "N", lo: "R", hiLabel: "脳筋",     loLabel: "屁理屈" },
+  { hi: "S", lo: "K", hiLabel: "散財",     loLabel: "ケチ" },
+  { hi: "C", lo: "J", hiLabel: "遅刻魔",   loLabel: "時間の奴隷" },
+];
+
+/* axis: どの軸の質問か(0〜3)
+ * choices: [選択肢テキスト, スコア] スコア +1 = 前者(P/N/S/C)寄り, -1 = 後者寄り, 0 = どっちつかず */
+const QUESTIONS = [
+  // ---- 軸0: テンション ----
+  { axis: 0, text: "金曜の夜、友達から「今から飲まん?」とLINEが来た。", choices: [
+    ["もう玄関にいる", 1],
+    ["「誰が来るか」による(メンバー審査)", 0],
+    ["既読を付けずに翌朝「ごめん寝てた」", -1],
+  ]},
+  { axis: 0, text: "カラオケでの立ち回りは?", choices: [
+    ["1曲目から全力。タンバリンは俺の楽器", 1],
+    ["盛り上がってきたら本気出す(出さないこともある)", 0],
+    ["ドリンクバー往復係に徹する", -1],
+  ]},
+  { axis: 0, text: "旅行の集合写真、あなたはどこにいる?", choices: [
+    ["真ん中で変なポーズしてる", 1],
+    ["普通に写ってる(奇跡的に目を閉じてる)", 0],
+    ["撮影係。つまり写ってない", -1],
+  ]},
+  // ---- 軸1: 思考回路 ----
+  { axis: 1, text: "組み立て家具を買った。説明書は?", choices: [
+    ["読まない。パーツが余っても「予備」と言い張る", 1],
+    ["詰んでから読む", 0],
+    ["読む前にレビューとYouTube解説を3本見る", -1],
+  ]},
+  { axis: 1, text: "友達と口論になった。あなたの武器は?", choices: [
+    ["声量", 1],
+    ["「まあいいや」と言いながら根に持つ", 0],
+    ["3日後に完璧な反論を思いついて悔しがる", -1],
+  ]},
+  { axis: 1, text: "「とりあえずやってみよう」と言われたら?", choices: [
+    ["もうやってる", 1],
+    ["人がやるのを見てから決める", 0],
+    ["まず失敗した場合のシミュレーションを始める", -1],
+  ]},
+  // ---- 軸2: 金銭感覚 ----
+  { axis: 2, text: "給料日(またはバイト代が入った日)の行動は?", choices: [
+    ["その日のうちに何か買ってる。記憶にないけど", 1],
+    ["ちょっといい飯だけ食って終わり", 0],
+    ["残高スクショして眺めてニヤニヤする", -1],
+  ]},
+  { axis: 2, text: "飲み会の割り勘で1人あたり4,980円。あなたは?", choices: [
+    ["「5,000円でいいよ!」(端数を制する者)", 1],
+    ["普通に払う", 0],
+    ["20円の返却を静かに、しかし確実に待つ", -1],
+  ]},
+  { axis: 2, text: "サブスク、いくつ入ってる?", choices: [
+    ["把握してない(それが答え)", 1],
+    ["2〜3個。たまに見直す", 0],
+    ["無料トライアルを解約日カレンダー管理で乗り継いでいる", -1],
+  ]},
+  // ---- 軸3: 時間感覚 ----
+  { axis: 3, text: "「12時に駅集合ね」。あなたが駅に着くのは?", choices: [
+    ["12時15分(電車が遅れたことにする)", 1],
+    ["12時ぴったり(ギリギリ走ってくる)", 0],
+    ["11時40分(集合場所の下見が終わっている)", -1],
+  ]},
+  { axis: 3, text: "夏休みの宿題(または仕事の締切)スタイルは?", choices: [
+    ["最終日の夜に泣きながらやる。毎回", 1],
+    ["中盤で一回焦って、また忘れる", 0],
+    ["初日に終わらせて優越感に浸る", -1],
+  ]},
+  { axis: 3, text: "「あと5分で出る」と言ってから実際に家を出るまで?", choices: [
+    ["45分(なぜか風呂に入り始める)", 1],
+    ["15分(スマホが悪い)", 0],
+    ["5分は5分。むしろ4分", -1],
+  ]},
+];
+
+/* 16タイプ辞書。コードは 軸0軸1軸2軸3 の順。
+ * best / worst には実在するタイプコードを入れると相性欄に名前が出ます。 */
+const TYPES = {
+  PNSC: { name: "歩く治外法権", tagline: "ルール?聞いたことないですね",
+    desc: "ノリで生き、ノリで金を溶かし、ノリで遅刻する。それでもなぜか許されるのは、本人に一切の悪意がないから。台風みたいな人間。",
+    manual: "怒っても無駄です。楽しいことをチラつかせて誘導しましょう。財布は預からないでください、あなたが破産します。",
+    best: "ORKJ", worst: "PRKJ" },
+  PNSJ: { name: "永遠の幹事", tagline: "飲み会の日程調整が生きがい",
+    desc: "テンション高い、行動力ある、金払いがいい、時間も守る。つまり幹事をやらされ続ける運命。本人もまんざらでもない。",
+    manual: "「ありがとう」と「ごちそうさま」を言っておけば一生幹事をしてくれます。たまには労ってください。",
+    best: "ONSJ", worst: "ONKC" },
+  PNKC: { name: "口だけ番長", tagline: "「今度マジで行こうや」(行かない)",
+    desc: "ノリは最高、計画性はゼロ、財布は固い、時間はルーズ。「絶対行く」の的中率は天気予報以下。でも憎めないのが一番タチ悪い。",
+    manual: "この人の「今度」は挨拶です。本当に来てほしいときは前日と当日朝に電話してください。",
+    best: "ORSJ", worst: "ORKJ" },
+  PNKJ: { name: "体育会系お母さん", tagline: "「ほら!行くよ!水筒持った!?」",
+    desc: "声がデカくて仕切りたがりで、なぜか節約上手で時間に厳しい。旅行に一人いると全てがスムーズに進むが、うるさい。",
+    manual: "基本従っておけば快適です。反抗すると集合時間が15分早められます。",
+    best: "PNSC", worst: "ORKC" },
+  PRSC: { name: "天才(自称)", tagline: "理論は完璧、実行はしない",
+    desc: "パーティーの中心で語り、壮大な理論を展開し、勢いで課金し、締切は守らない。アイデアだけなら世界を3回救ってる。",
+    manual: "話は面白いので聞いてあげてください。ただし「で、いつやるの?」とは聞かないこと。フリーズします。",
+    best: "ORKJ", worst: "PRKJ" },
+  PRSJ: { name: "意識高い系の末路", tagline: "朝活・筋トレ・積立NISA(全部SNSに載せる)",
+    desc: "社交的で理屈っぽくて自己投資に金を惜しまず、スケジュール帳がカラフル。周りは若干引いてるが、5年後一番成功してそうなのも事実。",
+    manual: "セミナーには誘われても行かなくて大丈夫です。「すごいね」だけで満足します。",
+    best: "ONKC", worst: "PNKC" },
+  PRKC: { name: "屁理屈ソムリエ", tagline: "「それ、論点ずれてない?」が口癖",
+    desc: "場は盛り上げるくせに、議論になると急に細かい。奢らないし遅刻する。でも謝罪のロジックだけは毎回完璧。",
+    manual: "口喧嘩で勝とうとしないでください。時間の無駄です。食べ物を与えると大人しくなります。",
+    best: "ONSJ", worst: "PNKJ" },
+  PRKJ: { name: "歩くコンプラ研修", tagline: "楽しい場を正論で制圧する",
+    desc: "社交的で頭が切れて堅実で時間厳守。完璧では?と思いきや、飲み会で「それハラスメントですよ」と言い出して場を凍らせるタイプ。",
+    manual: "正しいことしか言いません。正しさに疲れた日は距離を取りましょう。頼ると死ぬほど有能です。",
+    best: "PNSC", worst: "PRSC" },
+  ONSC: { name: "奇跡の置物", tagline: "いるだけで場がなんか和む",
+    desc: "テンション低め、深く考えず、金遣いは謎に荒く、遅刻する。何もしていないのに全員から愛される、理屈で説明できない存在。",
+    manual: "そっとしておいてください。餌付けは有効です。たまに爆買いしてるのは見なかったことに。",
+    best: "PNKJ", worst: "PRKJ" },
+  ONSJ: { name: "無言の課金者", tagline: "静かに推しに全額溶かす",
+    desc: "物静かで単純で、時間はきっちり守る堅実な人…と思いきや、推し・ガチャ・限定グッズにだけ財布が完全崩壊する。",
+    manual: "推しの話を振ると3時間止まりません。覚悟がある時だけ振ってください。",
+    best: "PNSJ", worst: "PRKC" },
+  ONKC: { name: "省エネモード人間", tagline: "人生の消費電力が最小",
+    desc: "動かない、考えない、使わない、急がない。省エネの極み。だが締切直前だけ人類最高効率を叩き出す謎のポテンシャルを持つ。",
+    manual: "急かしても速度は変わりません。締切だけ正確に伝えて放置が最適解です。",
+    best: "PNSJ", worst: "PNSC" },
+  ONKJ: { name: "地蔵オブザイヤー", tagline: "気づいたらそこにいる。ずっといる",
+    desc: "無口で堅実で時間に正確。飲み会では一言も発さないのに、解散時「今日楽しかった」と言う。多分本当に楽しかったのだろう。",
+    manual: "無理に話を振らなくて大丈夫です。本人なりに参加しています。存在を忘れて店を出ないようにだけ注意。",
+    best: "PNSC", worst: "PRSC" },
+  ORSC: { name: "夜行性の賢者", tagline: "深夜2時にだけ饒舌になる",
+    desc: "昼間は無気力、夜になると急に哲学と持論が止まらない。通販の深夜ポチり率も高い。遅刻の言い訳が毎回文学的。",
+    manual: "大事な相談は深夜にしてください。昼のこの人は別人(劣化版)です。",
+    best: "PNSJ", worst: "PNKJ" },
+  ORSJ: { name: "隠れ参謀", tagline: "表に出ないが全部この人が決めてる",
+    desc: "静かで理屈屋で、金も時間もきっちり管理。グループの旅行計画、実はこの人のスプレッドシートで動いている。",
+    manual: "手柄を横取りしないでください。静かにキレて、次の旅がグダグダになります。",
+    best: "PNKC", worst: "PNSC" },
+  ORKC: { name: "布団の哲学者", tagline: "「行けたら行く」界の重鎮",
+    desc: "外に出ない、屁理屈は一流、金は使わない、時間は守らない。布団の中から人生を語る。なお人生はまだ始まっていない。",
+    manual: "外に連れ出すには2週間前からの予告と当日の物理的回収が必要です。",
+    best: "PNSJ", worst: "ORKJ" },
+  ORKJ: { name: "人間Excel", tagline: "感情より先に集計が終わる",
+    desc: "冷静沈着、完璧な理論、揺るがない倹約、狂いのない時間管理。割り勘計算は小数点以下まで一瞬。信頼はできるが、たまに怖い。",
+    manual: "曖昧な誘い方をすると「目的は?」と返ってきます。5W1Hを揃えてから誘いましょう。",
+    best: "PNSC", worst: "PNKC" },
+};
+
+/* ============================================================
+ * ここから下はロジック(触らなくてOK)
+ * ============================================================ */
+let current = 0;
+const scores = [0, 0, 0, 0];
+const shuffled = [...QUESTIONS].sort(() => Math.random() - 0.5);
+
+function startQuiz() {
+  document.getElementById("screen-start").classList.add("hidden");
+  document.getElementById("screen-quiz").classList.remove("hidden");
+  showQuestion();
+}
+
+function showQuestion() {
+  const q = shuffled[current];
+  document.getElementById("progress").style.width = (current / shuffled.length * 100) + "%";
+  document.getElementById("qcount").textContent = `Q${current + 1} / ${shuffled.length}`;
+  document.getElementById("qtext").textContent = q.text;
+  const box = document.getElementById("answers");
+  box.innerHTML = "";
+  q.choices.forEach(([text, score]) => {
+    const b = document.createElement("button");
+    b.className = "btn";
+    b.textContent = text;
+    b.onclick = () => answer(q.axis, score);
+    box.appendChild(b);
+  });
+}
+
+function answer(axis, score) {
+  scores[axis] += score;
+  current++;
+  if (current < shuffled.length) {
+    showQuestion();
+  } else {
+    showResult();
+  }
+}
+
+function showResult() {
+  document.getElementById("screen-quiz").classList.add("hidden");
+  document.getElementById("screen-result").classList.remove("hidden");
+
+  const code = AXES.map((a, i) => scores[i] >= 0 ? a.hi : a.lo).join("");
+  const t = TYPES[code];
+
+  document.getElementById("rcode").textContent = code;
+  document.getElementById("rname").textContent = t.name;
+  document.getElementById("rtagline").textContent = t.tagline;
+  document.getElementById("rdesc").textContent = t.desc;
+  document.getElementById("rmanual").textContent = t.manual;
+  document.getElementById("rbest").textContent = `${TYPES[t.best].name}(${t.best})`;
+  document.getElementById("rworst").textContent = `${TYPES[t.worst].name}(${t.worst})`;
+
+  const axesBox = document.getElementById("raxes");
+  axesBox.innerHTML = "";
+  AXES.forEach((a, i) => {
+    // 各軸は質問3問 × ±1 = -3〜+3。+側の割合に変換
+    const pct = Math.round((scores[i] + 3) / 6 * 100);
+    const hiWin = scores[i] >= 0;
+    const div = document.createElement("div");
+    div.className = "axis";
+    div.innerHTML = `
+      <div class="axis-labels">
+        <span class="${hiWin ? "win" : ""}">${a.hiLabel} ${pct}%</span>
+        <span class="${hiWin ? "" : "win"}">${100 - pct}% ${a.loLabel}</span>
+      </div>
+      <div class="axis-bar"><div class="axis-fill" style="width:0%"></div></div>`;
+    axesBox.appendChild(div);
+    requestAnimationFrame(() => {
+      div.querySelector(".axis-fill").style.width = pct + "%";
+    });
+  });
+
+  window._resultText =
+    `【クソどうでもいい性格診断】\n` +
+    `私は「${code}:${t.name}」でした🧠\n` +
+    `→ ${t.tagline}\n` +
+    `💖相性◎: ${TYPES[t.best].name} / 💀相性✕: ${TYPES[t.worst].name}\n` +
+    `お前らもやれ`;
+}
+
+function copyResult() {
+  navigator.clipboard.writeText(window._resultText).then(() => {
+    const toast = document.getElementById("toast");
+    toast.classList.add("show");
+    setTimeout(() => toast.classList.remove("show"), 2000);
+  }).catch(() => {
+    prompt("コピーできなかったので手動でどうぞ:", window._resultText);
+  });
+}
+</script>
+</body>
+</html>
