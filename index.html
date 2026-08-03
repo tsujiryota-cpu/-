@@ -71,27 +71,7 @@
     margin-bottom: 20px;
   }
   .cast-grid svg { width: 100%; height: auto; border-radius: 10px; display: block; }
-  .sound-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-    margin-top: 8px;
-  }
-  .sound-grid button {
-    border: none;
-    border-radius: 10px;
-    background: #342a5e;
-    color: var(--text);
-    font-family: inherit;
-    font-size: .78rem;
-    font-weight: bold;
-    padding: 10px 6px;
-    cursor: pointer;
-    line-height: 1.4;
-  }
-  .sound-grid button:active { transform: scale(.95); background: #453879; }
-  .sound-title { font-size: .8rem; color: var(--accent2); letter-spacing: .15em; margin-top: 20px; }
-  .sound-note { font-size: .72rem; color: var(--muted); margin-top: 6px; line-height: 1.6; }
+  .sound-note { font-size: .72rem; color: var(--muted); margin-top: 12px; line-height: 1.6; }
   .progress-wrap { height: 8px; background: #342a5e; border-radius: 4px; margin-bottom: 20px; overflow: hidden; }
   .progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width .3s; }
   .q-count { color: var(--muted); font-size: .8rem; margin-bottom: 8px; }
@@ -436,9 +416,7 @@
     <p class="subtitle">MBTIっぽいけど科学的根拠は0人<br>全17問で、お前が「どのネタ」なのかが判明する</p>
     <div class="cast-grid" id="cast"></div>
     <button class="btn primary" onclick="startQuiz()">診断をはじめる(誠に遺憾です)</button>
-    <div class="sound-title">■ ネタ音声ボード(音量注意)</div>
-    <div class="sound-grid" id="soundboard"></div>
-    <p class="sound-note">診断中も要所で勝手に鳴ります。電車の中でやるな。</p>
+    <p class="sound-note">⚠ 診断中、効果音がランダムなタイミングで勝手に鳴ります。電車の中でやるな。</p>
     <p class="footer-note">※結果に文句を言うならお前が作れ<br>※友情が壊れても知りません</p>
   </div>
 
@@ -513,8 +491,8 @@ const AXES = [
 ];
 
 /* ---- ネタ音声(アップロードされた動画から抽出したもの) ----
- * SOUND_LABELS: サウンドボードに表示する名前。中身に合わせて書き換えて。
- * SOUND_EVENTS: どのタイミングでどの音声(番号)を鳴らすか。null で無効。
+ * SOUND_LABELS: 各音声番号のメモ(番号→中身の対応表)。
+ * SOUND_EVENTS: 固定イベント(スタート/コピー)で鳴らす音声番号。null で無効。
  * BGM_INDEX: 診断中ループ再生するBGM(バジリスクタイム)。 */
 const SOUND_LABELS = [
   "ネタ音声①(10秒)",
@@ -545,14 +523,13 @@ const RESULT_BGM_INDEX = 11; // 結果画面でループ再生(質問画面のBG
 const BGM_VOLUME = 0.15;     // 効果音が聞こえるよう控えめ
 const SOUND_EVENTS = {
   start: 1,   // 「診断をはじめる」を押した時
-  q1: 12,     // 1問目回答時
-  q3: 6,      // 3問終了時
-  q6: 7,      // 6問終了時
-  q9: 8,      // 9問終了時
-  q12: 4,     // 12問終了時
-  q15: 13,    // 15問終了時
   copy: 9,    // 結果をコピーした時
 };
+/* 回答ごとの効果音はランダム再生:
+ *   種類  … BGM以外の効果音から重複しないよう順番にシャッフル抽選
+ *   タイミング … ①回答ボタンを押した瞬間 ②次の質問に行った瞬間
+ *               ③次の質問に行ってから3秒後 の3パターンからランダム */
+const RANDOM_SFX_EXCLUDE = [BGM_INDEX, RESULT_BGM_INDEX]; // ランダム抽選から外す音声
 
 /* axis: どの軸の質問か(0〜3)
  * choices: [選択肢テキスト, スコア] +1 = 前者(B/D/S/C)寄り, -1 = 後者寄り, 0 = 中間 */
@@ -780,14 +757,19 @@ Object.keys(TYPES).forEach(code => {
   castBox.innerHTML += `<svg viewBox="0 0 100 100" role="img" aria-label="${TYPES[code].name}"><use href="#pt-${code}"/></svg>`;
 });
 
-// スタート画面: サウンドボード
-const sb = document.getElementById("soundboard");
-SOUND_LABELS.forEach((label, i) => {
-  const b = document.createElement("button");
-  b.textContent = "🔊 " + label;
-  b.onclick = () => play(i);
-  sb.appendChild(b);
-});
+// 回答ごとのランダム効果音: シャッフルバッグ方式で全種を一巡するまで重複させない
+let sfxBag = [];
+let sfxTimer = null;
+function nextRandomSfx() {
+  if (!sfxBag.length) {
+    sfxBag = SND.map((_, i) => i).filter(i => !RANDOM_SFX_EXCLUDE.includes(i));
+    for (let i = sfxBag.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [sfxBag[i], sfxBag[j]] = [sfxBag[j], sfxBag[i]];
+    }
+  }
+  return sfxBag.pop();
+}
 
 function startQuiz() {
   play(SOUND_EVENTS.start);
@@ -816,16 +798,16 @@ function showQuestion() {
 function answer(axis, score) {
   scores[axis] += score;
   current++;
-  if (current === 1) play(SOUND_EVENTS.q1);
-  if (current === 3) play(SOUND_EVENTS.q3);
-  if (current === 6) play(SOUND_EVENTS.q6);
-  if (current === 9) play(SOUND_EVENTS.q9);
-  if (current === 12 && current < shuffled.length) play(SOUND_EVENTS.q12);
-  if (current === 15 && current < shuffled.length) play(SOUND_EVENTS.q15);
+  clearTimeout(sfxTimer); // 前の回の3秒後再生が残っていたらキャンセル
+  const snd = nextRandomSfx();
+  const timing = Math.floor(Math.random() * 3);
   if (current < shuffled.length) {
+    if (timing === 0) play(snd);            // ①回答ボタンを押した瞬間
     showQuestion();
+    if (timing === 1) play(snd);            // ②次の質問に行った瞬間
+    if (timing === 2) sfxTimer = setTimeout(() => play(snd), 3000); // ③3秒後
   } else {
-    showResult();
+    showResult(); // 最終問は結果画面のBGM切替に任せる
   }
 }
 
