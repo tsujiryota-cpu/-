@@ -4,9 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>颯思颯愛診断【MBTI風・科学的根拠0人】</title>
-<meta name="description" content="全17問でお前が「どのネタ」なのか判明する16タイプ診断。結果に文句を言うならお前が作れ。">
+<meta name="description" content="全20問でお前が「どのネタ」なのか判明する16タイプ診断。結果に文句を言うならお前が作れ。">
 <meta property="og:title" content="🧠 颯思颯愛診断【MBTI風・科学的根拠0人】">
-<meta property="og:description" content="全17問でお前が「どのネタ」なのか判明する16タイプ診断。結果に文句を言うならお前が作れ。">
+<meta property="og:description" content="全20問でお前が「どのネタ」なのか判明する16タイプ診断。結果に文句を言うならお前が作れ。">
 <meta property="og:type" content="website">
 <style>
   :root {
@@ -474,7 +474,7 @@
   <!-- ===== スタート画面 ===== -->
   <div id="screen-start" class="card">
     <h1>🧠 颯思颯愛診断</h1>
-    <p class="subtitle">MBTIっぽいけど科学的根拠は0人<br>全17問で、お前が「どのネタ」なのかが判明する</p>
+    <p class="subtitle">MBTIっぽいけど科学的根拠は0人<br>全20問で、お前が「どのネタ」なのかが判明する</p>
     <div class="cast-grid" id="cast"></div>
     <button class="btn primary" onclick="startQuiz()">診断をはじめる(誠に遺憾です)</button>
     <p class="sound-note">⚠ 診断中、効果音がランダムなタイミングで勝手に鳴ります。電車の中でやるな。</p>
@@ -617,6 +617,21 @@ const QUESTIONS = [
     ["呼んでないやつまで来て会場に入りきらない", 1],
     ["仲いい5人くらいは来てくれるはず", 0],
     ["0人。なお会場の下見は済ませてある", -1],
+  ]},
+  { axis: 0, text: "バスで大事なゲームのカードを座席の隙間に落とした。あなたは?", choices: [
+    ["「うあぁ〜!ゲームのカード落としちゃった!」と車内全員に聞こえる声で運転手に訴える", 1],
+    ["隣の人に小声で「…取れると思います?」と共闘を持ちかける", 0],
+    ["無言で隙間に腕を突っ込んだまま終点まで運ばれる", -1],
+  ]},
+  { axis: 0, text: "電車で「東大医学部は頭悪い」と大声で語るおじさんが現れた。あなたは?", choices: [
+    ["「じゃあ正しい根拠を言え!」とノリノリで参戦する", 1],
+    ["そっと動画を撮ってグループLINEに供給する", 0],
+    ["気配を消して隣の車両に移動する", -1],
+  ]},
+  { axis: 0, text: "口論中に「その心笑ってるね」と図星を突かれた。実際のところは?", choices: [
+    ["「笑ってるが?」と開き直って声に出して笑う", 1],
+    ["「え、何の話ですか」と素で困惑する", 0],
+    ["図星すぎて心の中の笑いが完全に止まる", -1],
   ]},
   // ---- 軸1: 思考回路 ----
   { axis: 1, text: "目の前に段ボール製の空気砲がある。どうする?", choices: [
