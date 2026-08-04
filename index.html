@@ -76,6 +76,19 @@
   }
   .cast-grid svg { width: 100%; height: auto; border-radius: 10px; display: block; }
   .sound-note { font-size: .72rem; color: var(--muted); margin-top: 12px; line-height: 1.6; }
+  .back-btn {
+    display: block;
+    margin: 20px auto 0;
+    border: none;
+    background: none;
+    color: var(--muted);
+    font-family: inherit;
+    font-size: .85rem;
+    cursor: pointer;
+    padding: 8px 16px;
+    border-radius: 8px;
+  }
+  .back-btn:hover, .back-btn:active { color: var(--text); background: #342a5e; }
   .dex-hint { font-size: .75rem; color: var(--muted); margin-bottom: 4px; }
   .dex-item {
     background: #342a5e;
@@ -469,6 +482,7 @@
     <div id="qcount" class="q-count"></div>
     <div id="qtext" class="q-text"></div>
     <div id="answers"></div>
+    <button id="backbtn" class="back-btn hidden" onclick="goBack()">← 前の質問に戻る</button>
   </div>
 
   <!-- ===== 結果画面 ===== -->
@@ -768,6 +782,7 @@ const SND = ["data:audio/aac;base64,//FMgCuf/CERRQAUUAFG//EKWlpaWlpaWlpaWlpaWlpa
 
 let current = 0;
 const scores = [0, 0, 0, 0];
+const history = []; // 回答履歴 {axis, score}(戻る用)
 const shuffled = [...QUESTIONS].sort(() => Math.random() - 0.5);
 
 function play(i) {
@@ -842,10 +857,21 @@ function showQuestion() {
     b.onclick = () => answer(q.axis, score);
     box.appendChild(b);
   });
+  document.getElementById("backbtn").classList.toggle("hidden", current === 0);
+}
+
+function goBack() {
+  if (!history.length) return;
+  clearTimeout(sfxTimer); // 予約済みの3秒後効果音をキャンセル
+  const prev = history.pop();
+  scores[prev.axis] -= prev.score;
+  current--;
+  showQuestion();
 }
 
 function answer(axis, score) {
   scores[axis] += score;
+  history.push({ axis, score });
   current++;
   clearTimeout(sfxTimer); // 前の回の3秒後再生が残っていたらキャンセル
   const snd = nextRandomSfx();
