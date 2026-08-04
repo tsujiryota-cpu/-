@@ -383,20 +383,19 @@
       <text x="50" y="94" font-size="10" fill="#fff" text-anchor="middle" font-weight="bold">ホクホク</text>
     </symbol>
 
-    <!-- WDKJ シャムの岩石封じ(降り注ぐ岩) -->
+    <!-- WDKJ シャムの岩石封じ(中心を避けて並ぶカツ=カツカレー炒飯) -->
     <symbol id="pt-WDKJ" viewBox="0 0 100 100">
       <rect width="100" height="100" fill="#4e342e"/>
-      <path d="M20 10 L34 14 L36 28 L24 34 L14 24 Z" fill="#9e9e9e"/>
-      <path d="M52 6 L66 10 L68 24 L56 30 L46 20 Z" fill="#757575"/>
-      <path d="M76 16 L88 20 L88 32 L78 36 L70 28 Z" fill="#bdbdbd"/>
-      <path d="M36 40 L50 44 L52 58 L40 64 L30 54 Z" fill="#8d8d8d"/>
-      <line x1="27" y1="36" x2="27" y2="44" stroke="#ffd166" stroke-width="2.5" stroke-linecap="round"/>
-      <line x1="60" y1="32" x2="60" y2="40" stroke="#ffd166" stroke-width="2.5" stroke-linecap="round"/>
-      <circle cx="50" cy="80" r="9" fill="#fff"/>
-      <path d="M41 80 A9 9 0 0 1 59 80 Z" fill="#ef5350"/>
-      <line x1="41" y1="80" x2="59" y2="80" stroke="#212121" stroke-width="2"/>
-      <circle cx="50" cy="80" r="2.6" fill="#eee" stroke="#212121" stroke-width="1.5"/>
-      <text x="50" y="98" font-size="9" fill="#fff" text-anchor="middle" font-weight="bold">がんせきふうじ</text>
+      <circle cx="50" cy="46" r="34" fill="#eceff1"/>
+      <circle cx="50" cy="46" r="29" fill="#ffe0b2"/>
+      <rect x="43" y="20" width="14" height="9" rx="2" fill="#bf6b2f" transform="rotate(0 50 46)"/>
+      <rect x="43" y="20" width="14" height="9" rx="2" fill="#a85a26" transform="rotate(60 50 46)"/>
+      <rect x="43" y="20" width="14" height="9" rx="2" fill="#bf6b2f" transform="rotate(120 50 46)"/>
+      <rect x="43" y="20" width="14" height="9" rx="2" fill="#a85a26" transform="rotate(180 50 46)"/>
+      <rect x="43" y="20" width="14" height="9" rx="2" fill="#bf6b2f" transform="rotate(240 50 46)"/>
+      <rect x="43" y="20" width="14" height="9" rx="2" fill="#a85a26" transform="rotate(300 50 46)"/>
+      <circle cx="50" cy="46" r="10" fill="#8d5524"/>
+      <text x="50" y="95" font-size="9" fill="#fff" text-anchor="middle" font-weight="bold">中心は、あけておく</text>
     </symbol>
 
     <!-- WISC 石破構文(終わらない巻物) -->
@@ -768,10 +767,10 @@ const TYPES = {
     manual: "何もしなくていいです。そこにいてください。バター(褒め言葉)を乗せると溶けます。",
     neta: "北海道が生んだ最強のシンプル飯。この診断では「何もしていないのに全員に愛される」枠。実質最強タイプという説がある。",
     best: "BDSC", worst: "BDKJ" },
-  WDKJ: { name: "シャムの岩石封じ", tagline: "とりあえず、岩石封じ",
-    desc: "手持ちの技が実質1つしかないのに、その1つを完全に信頼しているタイプ。カラオケの十八番、飲み会の鉄板ネタ、旅行の行き先、全部同じ。でも毎回ちゃんと場は締まる。",
-    manual: "新しい技を覚えさせようとしないでください。岩石封じが好きなんです。技マシンを与えても使いません。",
-    neta: "syamuのポケモン実況で信頼され続けた技「がんせきふうじ」。あまりの采配に「syamuのせいで風評被害を食らった技」と言われる、実況史に残る一手。",
+  WDKJ: { name: "シャムの岩石封じ", tagline: "カツは、中心を避けて並べる",
+    desc: "誰にも理解されない独自の手順を、毎回きっちり守り抜くタイプ。周りから見ると完全に意味不明だが、本人の中では全工程に理由がある。そして最後はなぜかちゃんと完成する。",
+    manual: "「なんでそうするの?」と聞くと、ちゃんと理由が返ってきます。納得できるかは別の話です。手順には口を出さず、完成を待ちましょう。",
+    neta: "syamuの伝説の料理動画「カツカレー炒飯作ってみた!」で、炒飯の上にとんかつをどんぶりの中心だけ避けてリング状に並べた盛り付けが、ポケモンの技「がんせきふうじ」の岩の並びに見えるとネタにされたもの。なお中心を避けたのは真ん中にカレーをかけるためで、本人なりの理由はちゃんとあった。",
     best: "BDKC", worst: "BIKC" },
   WISC: { name: "石破構文", tagline: "議論するかどうかを、まず議論しなければならない",
     desc: "丁寧、誠実、そして異常に長い。あなたのLINEは常にスクロールが必要で、要約すると3行になる。結論は、ない。ないというわけではないが、あるとも言い切れない。",
