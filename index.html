@@ -177,17 +177,19 @@
   .toast {
     position: fixed;
     bottom: 24px; left: 50%;
-    transform: translateX(-50%) translateY(80px);
+    transform: translateX(-50%) translateY(120px);
     background: var(--accent);
     color: #fff;
     padding: 10px 24px;
     border-radius: 999px;
     font-size: .9rem;
     font-weight: bold;
-    transition: transform .3s;
+    transition: transform .3s, opacity .3s;
+    opacity: 0;
+    visibility: hidden;
     z-index: 10;
   }
-  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; visibility: visible; }
   .bgm-btn {
     position: fixed;
     right: 16px; bottom: 16px;
@@ -567,7 +569,7 @@ const SOUND_LABELS = [
 ];
 const BGM_INDEX = 21;        // 診断中(質問画面)にループ再生
 const RESULT_BGM_INDEX = 11; // 結果画面でループ再生(質問画面のBGMと差し替え)
-const BGM_VOLUME = 0.08;     // 効果音が聞こえるよう控えめ
+const BGM_VOLUME = 0.04;     // 効果音が聞こえるよう控えめ
 const SOUND_EVENTS = {
   start: 1,   // 「診断をはじめる」を押した時
   copy: 9,    // 結果をコピーした時
