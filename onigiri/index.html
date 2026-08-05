@@ -268,10 +268,15 @@ const DIFF_SFX = {
 ================================================================ */
 // ez: 譜面の簡単さ補正(ノーツ間隔・検出しきい値に掛ける。大きいほど簡単)
 // 曲自体がレベル制: Lv.1が一番やさしく、Lv.3が一番密度が高い
+// mvMode: "sync"=動画内の音声をBGMと相互相関で合わせ込み(同じ曲が流れている動画用)
+//         "cue" =サビ(最大音圧区間)を検出してその手前(preroll秒前)から流す
 const SONGS = {
-  basilisk: { name: "バジリスクタイム(1番)", lv: 1, data: BGM_DATA, length: 92, ez: 1.5 },
-  youtube:  { name: "YouTubeテーマソング", lv: 2, data: YT_DATA, length: 96, ez: 1.1 },
-  yodoriko: { name: "夜の踊り子", lv: 3, data: YODORIKO_DATA, length: 65, ez: .8, mv: "yodoriko_mv.mov" }
+  basilisk: { name: "バジリスクタイム(1番)", lv: 1, data: BGM_DATA, length: 92, ez: 1.5,
+              mv: "basilisk_mv.mov", mvMode: "sync", mvLen: 20.9 },
+  youtube:  { name: "YouTubeテーマソング", lv: 2, data: YT_DATA, length: 96, ez: 1.1,
+              mv: "youtube_mv.mov", mvMode: "cue", mvLen: 19.9, preroll: 1.5 },
+  yodoriko: { name: "夜の踊り子", lv: 3, data: YODORIKO_DATA, length: 65, ez: .8,
+              mv: "yodoriko_mv.mov", mvMode: "cue", mvLen: 13.7, preroll: 6 }
 };
 const DIFFS = {
   easy:   { gap: .40, sens: 1.35, speed: .55, name: "おだやか" },
@@ -477,8 +482,8 @@ async function buildChart(buffer, cfg) {
     const lp = (eL[fBest] + eL[fBest + 1]) / 2, hp = (eH[fBest] + eH[fBest + 1]) / 2;
     notes.push({ time: tSnap, type: hp > lp * .38 ? "ka" : "don", hit: false, judged: false });
   }
-  // サビ検出: エネルギー合計が最大になる13.5秒窓の開始位置(MVの再生キューに使う)
-  const winF = Math.min(frames - 1, 13.5 * SR / HOP | 0);
+  // サビ検出: エネルギー合計が最大になる窓(=MVの長さ)の開始位置(MVの再生キューに使う)
+  const winF = Math.min(frames - 1, (cfg.mvWin || 13.5) * SR / HOP | 0);
   let acc = 0;
   for (let f = 0; f < winF; f++) acc += eL[f] + eH[f];
   let best = acc, bestF = 0;
@@ -546,7 +551,47 @@ const ctx2d = canvas.getContext("2d");
 let notes = [], specials = [], flashes = [], pops = [], burst = [];
 let score = 0, combo = 0, maxCombo = 0, counts = { ryo: 0, ka: 0, fu: 0, renda: 0 };
 let soul = .25, running = false, ended = false, noteSpeed = .7;
-let mvCueTime = 0;
+let mvCueTime = 0, mvSyncOffset = null;
+
+/* ---- MV音声同期: 動画の音声とBGMの音量エンベロープを相互相関 ---- */
+function audioEnvelope(buf, fps, maxSec) {
+  const ch = buf.getChannelData(0);
+  const hop = Math.round(buf.sampleRate / fps);
+  const frames = Math.floor(Math.min(ch.length, (maxSec ? maxSec * buf.sampleRate : ch.length)) / hop);
+  const env = new Float32Array(frames);
+  for (let f = 0; f < frames; f++) {
+    let s = 0;
+    const base = f * hop;
+    for (let i = 0; i < hop; i += 4) { const v = ch[base + i]; s += v * v; }
+    env[f] = Math.sqrt(s);
+  }
+  let m = 0;
+  for (let f = 0; f < frames; f++) m += env[f];
+  m /= frames;
+  for (let f = 0; f < frames; f++) env[f] -= m;
+  return env;
+}
+
+async function findMvSyncOffset(song, cfg) {
+  const FPS = 50;
+  const res = await fetch(song.mv);
+  const ab = await res.arrayBuffer();
+  const clipBuf = await new Promise((ok, ng) => {
+    const p = actx.decodeAudioData(ab, ok, ng);
+    if (p && p.catch) p.catch(() => {});
+  });
+  const envSong = audioEnvelope(bgmBuffer, FPS, cfg.length + 4);
+  const envClip = audioEnvelope(clipBuf, FPS);
+  const maxO = envSong.length - envClip.length;
+  if (maxO < 0) return 0;
+  let best = -Infinity, bo = 0;
+  for (let o = 0; o <= maxO; o++) {
+    let s = 0;
+    for (let i = 0; i < envClip.length; i++) s += envSong[o + i] * envClip[i];
+    if (s > best) { best = s; bo = o; }
+  }
+  return bo / FPS;
+}
 
 function resizeCanvas() {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -574,16 +619,24 @@ document.getElementById("start-btn").addEventListener("click", async () => {
       if (p && p.catch) p.catch(() => {}); // コールバック形式でも返るPromiseの未処理拒否を握りつぶす
     });
     document.getElementById("load-text").textContent = "おにぎりポイントを検出中…";
+    cfg.mvWin = song.mvLen || 13.5;
     const res = await buildChart(bgmBuffer, cfg);
     notes = res.notes;
-    // MVはサビ(最大音圧区間)の6秒前から流し始める
-    mvCueTime = Math.max(0, Math.min(res.mvCue - 6, cfg.length - 15));
+    // MVはサビ(最大音圧区間)のpreroll秒前から流し始める
+    mvCueTime = Math.max(0, Math.min(res.mvCue - (song.preroll || 0), cfg.length - (song.mvLen || 14) - 1));
     if (notes.length < 30) notes = fallbackChart(cfg);
+    // 同曲入り動画は音声の相互相関でズレゼロ合わせ込み
+    mvSyncOffset = null;
+    if (song.mv && song.mvMode === "sync") {
+      document.getElementById("load-text").textContent = "ダンスを曲に合わせ込み中…";
+      try { mvSyncOffset = await findMvSyncOffset(song, cfg); } catch (e) { mvSyncOffset = null; }
+    }
   } catch (e) {
     // デコード不可環境: 譜面は固定、BGMなしで続行
     bgmBuffer = null;
     notes = fallbackChart(cfg);
     mvCueTime = 14;
+    mvSyncOffset = null;
   }
   specials = buildSpecials(notes, cfg);
   document.querySelector("#hud .song").textContent = "♪ " + song.name;
@@ -610,15 +663,22 @@ function startGame() {
   requestAnimationFrame(loop);
 }
 
-/* 楽曲MV: サビの少し前(mvCueTime)から曲に合わせてループ再生。
+/* 楽曲MV:
+   - sync: 動画内で同じ曲が流れているので、相互相関で求めたオフセット位置で1回だけ再生(完全同期)
+   - cue : サビの少し前(mvCueTime)からループ再生
    再生できない環境では自動で消える */
 const mv = document.getElementById("mv");
 function startMv() {
-  const src = SONGS[songKey].mv;
-  if (!src) { mv.style.display = "none"; mv.removeAttribute("src"); return; }
+  const song = SONGS[songKey];
+  if (!song.mv) { mv.style.display = "none"; mv.removeAttribute("src"); return; }
+  const isSync = song.mvMode === "sync";
+  if (isSync && mvSyncOffset == null) { mv.style.display = "none"; mv.removeAttribute("src"); return; }
+  mv.loop = !isSync;
   mv.onerror = () => { mv.style.display = "none"; };
-  mv.src = src; // 先読みだけ開始
-  const delay = (actx ? Math.max(0, (songStart - actx.currentTime) * 1000) : 350) + mvCueTime * 1000;
+  mv.onended = isSync ? () => { mv.style.display = "none"; } : null;
+  mv.src = song.mv; // 先読みだけ開始
+  const cue = isSync ? mvSyncOffset : mvCueTime;
+  const delay = (actx ? Math.max(0, (songStart - actx.currentTime) * 1000) : 350) + cue * 1000;
   setTimeout(() => {
     if (!running || ended) return;
     mv.style.display = "block";
@@ -759,12 +819,10 @@ function loop() {
   ctx2d.strokeStyle = "rgba(255,244,236,.25)"; ctx2d.lineWidth = 2;
   ctx2d.strokeRect(-2, laneY - noteR - 12, W + 4, (noteR + 12) * 2);
 
-  // 判定枠(中にしげる公式ポートレート常駐)
+  // 判定枠(中にしげる公式ポートレート常駐、くっきり表示)
   const hitFace = loadImg(IMG.resPortrait);
   if (hitFace.complete && hitFace.naturalWidth) {
-    ctx2d.globalAlpha = .6;
-    ctx2d.drawImage(hitFace, hitX - noteR + 3, laneY - noteR + 3, (noteR - 3) * 2, (noteR - 3) * 2);
-    ctx2d.globalAlpha = 1;
+    ctx2d.drawImage(hitFace, hitX - noteR - 1, laneY - noteR - 1, (noteR + 1) * 2, (noteR + 1) * 2);
   }
   ctx2d.strokeStyle = "rgba(255,244,236,.85)"; ctx2d.lineWidth = 4;
   ctx2d.beginPath(); ctx2d.arc(hitX, laneY, noteR, 0, Math.PI * 2); ctx2d.stroke();
@@ -874,6 +932,14 @@ function loop() {
     ctx2d.fillStyle = p.color;
     ctx2d.fillText(p.text, hitX, laneY - noteR - 20 - pr * 24);
     ctx2d.globalAlpha = 1;
+  }
+
+  // syncモードのMVはBGMとのドリフトを常時補正
+  if (mvSyncOffset != null && SONGS[songKey].mvMode === "sync" && mv.style.display !== "none" && !mv.paused) {
+    const expect = now - mvSyncOffset;
+    if (expect >= 0 && expect < (SONGS[songKey].mvLen || 99) && Math.abs(mv.currentTime - expect) > .3) {
+      try { mv.currentTime = expect; } catch (e) {}
+    }
   }
 
   // 終了判定(連打・風船の終わりも待つ)
