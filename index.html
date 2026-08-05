@@ -587,7 +587,8 @@ const SOUND_LABELS = [
 ];
 const BGM_INDEX = 21;        // 診断中(質問画面)にループ再生
 const RESULT_BGM_INDEX = 11; // 結果画面でループ再生(質問画面のBGMと差し替え)
-const BGM_VOLUME = 0.12;     // 効果音が聞こえるよう控えめ(スマホ/PC共通で効く)
+const BGM_VOLUME = 0.5;      // BGMの音量(スマホ/PC共通で効く)
+const SFX_VOLUME = 0.8;      // 効果音の音量(同上)
 const SOUND_EVENTS = {
   start: 1,   // 「診断をはじめる」を押した時
   copy: 9,    // 結果をコピーした時
@@ -805,11 +806,28 @@ const scores = [0, 0, 0, 0];
 const history = []; // 回答履歴 {axis, score}(戻る用)
 const shuffled = [...QUESTIONS].sort(() => Math.random() - 0.5);
 
+/* iOS Safariはaudio.volumeを無視して常に100%で鳴らすため、
+ * Web AudioのGainNodeで音量を絞る(こちらはiOSでも効く)。
+ * 非対応環境ではvolumeプロパティのままフォールバック。 */
+function routeGain(a, vol) {
+  a.volume = vol;
+  try {
+    const ctx = window._actx || (window._actx = new (window.AudioContext || window.webkitAudioContext)());
+    if (ctx.state === "suspended") ctx.resume();
+    const src = ctx.createMediaElementSource(a);
+    const gain = ctx.createGain();
+    gain.gain.value = vol;
+    src.connect(gain).connect(ctx.destination);
+    a.volume = 1; // GainNode側で絞るので二重に下げない
+  } catch (e) {}
+}
+
 function play(i) {
   if (i == null || !SND[i]) return;
   try {
     if (window._au) window._au.pause();
     const a = new Audio(SND[i]);
+    routeGain(a, SFX_VOLUME);
     window._au = a;
     a.play().catch(() => {});
   } catch (e) {}
@@ -820,18 +838,7 @@ function startBgm(index) {
     if (window._bgm) window._bgm.pause();
     const a = new Audio(SND[index]);
     a.loop = true;
-    a.volume = BGM_VOLUME;
-    // iOS Safariはvolumeプロパティを無視して常に100%で鳴らすため、
-    // Web AudioのGainNodeで絞る(こちらはiOSでも効く)
-    try {
-      const ctx = window._actx || (window._actx = new (window.AudioContext || window.webkitAudioContext)());
-      if (ctx.state === "suspended") ctx.resume();
-      const src = ctx.createMediaElementSource(a);
-      const gain = ctx.createGain();
-      gain.gain.value = BGM_VOLUME;
-      src.connect(gain).connect(ctx.destination);
-      a.volume = 1; // GainNode側で絞るので二重に下げない
-    } catch (e) {} // Web Audio非対応ならvolumeプロパティのまま
+    routeGain(a, BGM_VOLUME);
     window._bgm = a;
     a.play().catch(() => {});
     document.getElementById("bgmbtn").classList.remove("hidden");
