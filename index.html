@@ -4,9 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>颯思颯愛診断【MBTI風・科学的根拠0人】</title>
-<meta name="description" content="全20問でお前が「どのネタ」なのか判明する16タイプ診断。結果に文句を言うならお前が作れ。">
+<meta name="description" content="全21問でお前が「どのネタ」なのか判明する16タイプ診断。結果に文句を言うならお前が作れ。">
 <meta property="og:title" content="🧠 颯思颯愛診断【MBTI風・科学的根拠0人】">
-<meta property="og:description" content="全20問でお前が「どのネタ」なのか判明する16タイプ診断。結果に文句を言うならお前が作れ。">
+<meta property="og:description" content="全21問でお前が「どのネタ」なのか判明する16タイプ診断。結果に文句を言うならお前が作れ。">
 <meta property="og:type" content="website">
 <style>
   :root {
@@ -398,21 +398,17 @@
       <text x="50" y="95" font-size="9" fill="#fff" text-anchor="middle" font-weight="bold">中心は、あけておく</text>
     </symbol>
 
-    <!-- WISC 石破構文(終わらない巻物) -->
+    <!-- WISC 野獣先輩(アイスティー) -->
     <symbol id="pt-WISC" viewBox="0 0 100 100">
-      <rect width="100" height="100" fill="#37474f"/>
-      <rect x="22" y="10" width="56" height="80" rx="4" fill="#f5f0e1"/>
-      <circle cx="22" cy="14" r="6" fill="#d7ccc8"/>
-      <circle cx="78" cy="14" r="6" fill="#d7ccc8"/>
-      <line x1="30" y1="24" x2="70" y2="24" stroke="#8d8468" stroke-width="2.5"/>
-      <line x1="30" y1="32" x2="70" y2="32" stroke="#8d8468" stroke-width="2.5"/>
-      <line x1="30" y1="40" x2="70" y2="40" stroke="#8d8468" stroke-width="2.5"/>
-      <line x1="30" y1="48" x2="70" y2="48" stroke="#8d8468" stroke-width="2.5"/>
-      <line x1="30" y1="56" x2="70" y2="56" stroke="#8d8468" stroke-width="2.5"/>
-      <line x1="30" y1="64" x2="70" y2="64" stroke="#8d8468" stroke-width="2.5"/>
-      <line x1="30" y1="72" x2="52" y2="72" stroke="#8d8468" stroke-width="2.5"/>
-      <text x="62" y="76" font-size="10" fill="#5d4037" font-weight="bold">...</text>
-      <text x="50" y="97" font-size="9" fill="#fff" text-anchor="middle" font-weight="bold">(結論は次回)</text>
+      <rect width="100" height="100" fill="#4e342e"/>
+      <rect x="0" y="70" width="100" height="30" fill="#3e2723"/>
+      <rect x="53" y="8" width="4" height="32" rx="2" fill="#ef5350" transform="rotate(10 55 24)"/>
+      <path d="M32 24 L68 24 L63 76 L37 76 Z" fill="#bbdefb" opacity=".3" stroke="#e3f2fd" stroke-width="2"/>
+      <path d="M34.5 36 L65.5 36 L62 74 L38 74 Z" fill="#b26a1b"/>
+      <rect x="40" y="40" width="9" height="9" rx="2" fill="#fff" opacity=".8" transform="rotate(14 44 44)"/>
+      <rect x="51" y="52" width="9" height="9" rx="2" fill="#fff" opacity=".75" transform="rotate(-12 55 56)"/>
+      <circle cx="66" cy="26" r="6" fill="#ffee58"/>
+      <text x="50" y="93" font-size="8" fill="#fff" text-anchor="middle" font-weight="bold">アイスティーしかなかった</text>
     </symbol>
 
     <!-- WISJ 石破茂(演台とプラモ戦車) -->
@@ -473,7 +469,7 @@
   <!-- ===== スタート画面 ===== -->
   <div id="screen-start" class="card">
     <h1>🧠 颯思颯愛診断</h1>
-    <p class="subtitle">MBTIっぽいけど科学的根拠は0人<br>全20問で、お前が「どのネタ」なのかが判明する</p>
+    <p class="subtitle">MBTIっぽいけど科学的根拠は0人<br>全21問で、お前が「どのネタ」なのかが判明する</p>
     <div class="cast-grid" id="cast"></div>
     <button class="btn primary" onclick="startQuiz()">診断をはじめる(誠に遺憾です)</button>
     <p class="sound-note">⚠ 診断中、効果音がランダムなタイミングで勝手に鳴ります。電車の中でやるな。</p>
@@ -641,6 +637,7 @@ const QUESTIONS = [
   ]},
   { axis: 1, text: "口喧嘩が始まった。あなたの戦い方は?", choices: [
     ["声量と勢い。内容は後から考える", 1],
+    ["「いいよ!来いよ!」と受けて立つ(何がとは言わない)", 1],
     ["「誠に遺憾です」とだけ言って離脱する", 0],
     ["相手が疲れて帰るまで論点を増やし続ける", -1],
   ]},
@@ -665,6 +662,11 @@ const QUESTIONS = [
     ["宣言する前に本当にやらないか3回シミュレーションする", -1],
   ]},
   // ---- 軸2: 金銭感覚 ----
+  { axis: 2, text: "友達が突然家に遊びに来ることになった。もてなしは?", choices: [
+    ["出前を人数分の倍で取る。会計は見ない", 1],
+    ["「アイスティーしかなかったけどいいかな?」で乗り切る", 0],
+    ["「まずうちさぁ、屋上あんだけど…焼いてかない?」(食材は各自持参)", -1],
+  ]},
   { axis: 2, text: "給料日(バイト代が入った日)。その日のうちに?", choices: [
     ["開封動画が撮れる量の買い物をしている", 1],
     ["ちょっといい飯を食べて満足する", 0],
@@ -703,6 +705,7 @@ const QUESTIONS = [
   ]},
   { axis: 3, text: "正直に答えろ。一番「自分だな」と思うのは?", choices: [
     ["ソウルドリンクとソフトドリンクを誤認したことがある", 1],
+    ["24歳、学生です(4年目の2年生)", 1],
     ["毎年、友達の誕生日を二日遅れで祝ってしまう。", 1],
     ["黒い服を着ていると「裸?」と聴かれることが多い", 0],
     ["特にないが、心当たりのある顔なら浮かんだ", 0],
@@ -774,11 +777,11 @@ const TYPES = {
     manual: "「なんでそうするの?」と聞くと、ちゃんと理由が返ってきます。納得できるかは別の話です。手順には口を出さず、完成を待ちましょう。",
     neta: "syamuの伝説の料理動画「カツカレー炒飯作ってみた!」で、炒飯の上にとんかつをどんぶりの中心だけ避けてリング状に並べた盛り付けが、ポケモンの技「がんせきふうじ」の岩の並びに見えるとネタにされたもの。なお中心を避けたのは真ん中にカレーをかけるためで、本人なりの理由はちゃんとあった。",
     best: "BDKC", worst: "BIKC" },
-  WISC: { name: "石破構文", tagline: "議論するかどうかを、まず議論しなければならない",
-    desc: "丁寧、誠実、そして異常に長い。あなたのLINEは常にスクロールが必要で、要約すると3行になる。結論は、ない。ないというわけではないが、あるとも言い切れない。",
-    manual: "「つまり?」と聞いても長くなるだけです。選択肢を2つ提示すると文が止まります。",
-    neta: "石破茂首相の、修飾語が多く結論までが異常に長い話し方がミーム化したもの。丁寧なのに何も答えていない、を実現する高等技術。ビジネスメールへの応用例も存在する。",
-    best: "WISJ", worst: "BDSC" },
+  WISC: { name: "野獣先輩", tagline: "まずうちさぁ、屋上あんだけど",
+    desc: "距離の詰め方が独特すぎる社交派。初対面でもとりあえず家に誘い、アイスティーを振る舞い、屋上で肉を焼こうとする。自称24歳・学生。何をしている人なのかは誰も知らないが、なぜか界隈の中心にいる。",
+    manual: "「アイスティーしかなかったけどいいかな?」と聞かれたら「あっ、いいっす」が正解です。誘いは断っても怒られませんが、気づくとまた家に招かれています。",
+    neta: "ネット文化圏最大の伝説的人物。「まずうちさぁ、屋上あんだけど…焼いてかない?」「アイスティーしかなかったけどいいかな?」「24歳、学生です」など数々の名言(迷言)を残し、正体も現在も一切不明のまま、ネット最大級の未解決問題として今も探され続けている。8月10日は「野獣の日」。",
+    best: "BISC", worst: "BDSJ" },
   WISJ: { name: "石破茂", tagline: "プラモと国防とキャンディーズ",
     desc: "防衛・鉄道・プラモ・カレー・アイドルを愛する多趣味の理論派オタク。米国大使にはP3哨戒機、ロシア国防相には空母のプラモを徹夜で組んで披露した「プラモ外交」の使い手。",
     manual: "専門分野の質問は覚悟してからしてください。昭和の車種は全部言えるらしいです。納期と義理はきっちり守る、実は超信頼できる人。",
