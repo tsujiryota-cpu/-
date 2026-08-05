@@ -76,6 +76,25 @@
   }
   .cast-grid svg { width: 100%; height: auto; border-radius: 10px; display: block; }
   .sound-note { font-size: .72rem; color: var(--muted); margin-top: 12px; line-height: 1.6; }
+  .sound-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .sound-grid button {
+    border: none;
+    border-radius: 10px;
+    background: #342a5e;
+    color: var(--text);
+    font-family: inherit;
+    font-size: .78rem;
+    font-weight: bold;
+    padding: 10px 6px;
+    cursor: pointer;
+    line-height: 1.4;
+  }
+  .sound-grid button:active { transform: scale(.95); background: #453879; }
   .back-btn {
     display: block;
     margin: 20px auto 0;
@@ -526,6 +545,12 @@
       <div id="rdex"></div>
     </div>
 
+    <div class="section">
+      <h3>■ ネタ音声ボード(音量注意)</h3>
+      <p class="dex-hint">診断中に鳴っていた効果音とBGMの一覧。🎵を押すと再生中のBGMが切り替わります。</p>
+      <div class="sound-grid" id="soundboard"></div>
+    </div>
+
     <button class="btn primary" onclick="copyResult()">結果をコピーして自慢する</button>
     <button class="btn" style="text-align:center" onclick="location.reload()">もう一回やる(結果が誠に遺憾だった人向け)</button>
   </div>
@@ -860,6 +885,16 @@ function toggleBgm() {
 const castBox = document.getElementById("cast");
 Object.keys(TYPES).forEach(code => {
   castBox.innerHTML += `<svg viewBox="0 0 100 100" role="img" aria-label="${TYPES[code].name}"><use href="#pt-${code}"/></svg>`;
+});
+
+// 結果画面: サウンドボード(BGM系は押すと再生中のBGMを切り替え)
+const sb = document.getElementById("soundboard");
+SOUND_LABELS.forEach((label, i) => {
+  const isBgm = i === BGM_INDEX || i === RESULT_BGM_INDEX;
+  const b = document.createElement("button");
+  b.textContent = (isBgm ? "🎵 " : "🔊 ") + label;
+  b.onclick = () => isBgm ? startBgm(i) : play(i);
+  sb.appendChild(b);
 });
 
 // 回答ごとのランダム効果音: シャッフルバッグ方式で全種を一巡するまで重複させない
