@@ -272,11 +272,11 @@ const DIFF_SFX = {
 //         "cue" =サビ(最大音圧区間)を検出してその手前(preroll秒前)から流す
 const SONGS = {
   basilisk: { name: "バジリスクタイム(1番)", lv: 1, data: BGM_DATA, length: 92, ez: 1.5,
-              mv: "basilisk_mv.mov", mvMode: "sync", mvLen: 20.9 },
+              mv: "basilisk_mv.mov", mvMode: "sync", mvLen: 19.9 },
   youtube:  { name: "YouTubeテーマソング", lv: 2, data: YT_DATA, length: 96, ez: 1.1,
-              mv: "youtube_mv.mov", mvMode: "cue", mvLen: 19.9, preroll: 1.5 },
+              mv: "youtube_mv.mov", mvMode: "cue", mvLen: 20.9, preroll: 1.5 },
   yodoriko: { name: "夜の踊り子", lv: 3, data: YODORIKO_DATA, length: 65, ez: .8,
-              mv: "yodoriko_mv.mov", mvMode: "cue", mvLen: 13.7, preroll: 6 }
+              mv: "yodoriko_mv.mov", mvMode: "sync", mvLen: 13.7 }
 };
 const DIFFS = {
   easy:   { gap: .40, sens: 1.35, speed: .55, name: "おだやか" },
@@ -819,10 +819,15 @@ function loop() {
   ctx2d.strokeStyle = "rgba(255,244,236,.25)"; ctx2d.lineWidth = 2;
   ctx2d.strokeRect(-2, laneY - noteR - 12, W + 4, (noteR + 12) * 2);
 
-  // 判定枠(中にしげる公式ポートレート常駐、くっきり表示)
+  // 判定枠(中にしげる公式ポートレート常駐。円クリップで枠から絶対はみ出さない)
   const hitFace = loadImg(IMG.resPortrait);
   if (hitFace.complete && hitFace.naturalWidth) {
-    ctx2d.drawImage(hitFace, hitX - noteR - 1, laneY - noteR - 1, (noteR + 1) * 2, (noteR + 1) * 2);
+    ctx2d.save();
+    ctx2d.beginPath();
+    ctx2d.arc(hitX, laneY, noteR - 2, 0, Math.PI * 2);
+    ctx2d.clip();
+    ctx2d.drawImage(hitFace, hitX - noteR, laneY - noteR, noteR * 2, noteR * 2);
+    ctx2d.restore();
   }
   ctx2d.strokeStyle = "rgba(255,244,236,.85)"; ctx2d.lineWidth = 4;
   ctx2d.beginPath(); ctx2d.arc(hitX, laneY, noteR, 0, Math.PI * 2); ctx2d.stroke();
