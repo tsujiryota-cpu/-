@@ -92,10 +92,19 @@
   #hud {
     display: flex; justify-content: space-between; align-items: baseline;
     padding: 8px 14px 4px; font-weight: bold; gap: 8px;
+    position: relative; z-index: 2;
   }
   #hud .song { font-size: .72rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #score { font-size: 1.15rem; color: var(--gold); min-width: 7ch; text-align: right; }
-  #game-canvas { flex: 1; width: 100%; min-height: 0; display: block; }
+  #game-canvas { flex: 1; width: 100%; min-height: 0; display: block; position: relative; z-index: 1; }
+  /* 楽曲MV(夜の踊り子): キャンバスの透明部分から覗く。非対応ブラウザでは自動非表示 */
+  #mv {
+    position: absolute; left: 50%; transform: translateX(-50%);
+    bottom: 34%; height: 36%; max-width: 92vw;
+    border-radius: 14px; z-index: 0; display: none;
+    box-shadow: 0 8px 30px rgba(0,0,0,.6);
+    opacity: .92;
+  }
   #pads { display: flex; gap: 10px; padding: 10px 12px calc(12px + env(safe-area-inset-bottom)); height: 32%; min-height: 130px; }
   .pad {
     flex: 1; border: none; border-radius: 22px; font-family: inherit; cursor: pointer;
@@ -176,6 +185,7 @@
 
 <!-- ================= ゲーム ================= -->
 <div id="game-screen" class="screen">
+  <video id="mv" muted playsinline loop preload="none"></video>
   <div id="hud">
     <span class="song">♪ バジリスクタイム</span>
     <span id="combo-hud" style="color:#ff9770"></span>
@@ -253,7 +263,7 @@ const COMBO_VOICES = ["data:audio/aac;base64,//FQgCY//CEMFQ22C0KBsKBsJQskxAZeQyu
 const SONGS = {
   basilisk: { name: "バジリスクタイム(1番)", lv: 1, data: BGM_DATA, length: 75, ez: 1.5 },
   youtube:  { name: "YouTubeテーマソング", lv: 2, data: YT_DATA, length: 96, ez: 1.1 },
-  yodoriko: { name: "夜の踊り子", lv: 3, data: YODORIKO_DATA, length: 65, ez: .8 }
+  yodoriko: { name: "夜の踊り子", lv: 3, data: YODORIKO_DATA, length: 65, ez: .8, mv: "yodoriko_mv.mov" }
 };
 const DIFFS = {
   easy:   { gap: .40, sens: 1.35, speed: .55, name: "おだやか" },
@@ -483,8 +493,28 @@ function startGame() {
   } else {
     songStart = actx ? actx.currentTime + .35 : performance.now() / 1000 + .35;
   }
+  startMv();
   running = true;
   requestAnimationFrame(loop);
+}
+
+/* 楽曲MV: 曲の開始に合わせてループ再生(再生できない環境では自動で消える) */
+const mv = document.getElementById("mv");
+function startMv() {
+  const src = SONGS[songKey].mv;
+  if (!src) { mv.style.display = "none"; mv.removeAttribute("src"); return; }
+  mv.style.display = "block";
+  mv.onerror = () => { mv.style.display = "none"; };
+  mv.src = src;
+  const delay = actx ? Math.max(0, (songStart - actx.currentTime) * 1000) : 350;
+  setTimeout(() => {
+    try { mv.currentTime = 0; } catch (e) {}
+    mv.play().catch(() => { mv.style.display = "none"; });
+  }, delay);
+}
+function stopMv() {
+  try { mv.pause(); } catch (e) {}
+  mv.style.display = "none";
 }
 
 /* ---------- 入力 ---------- */
@@ -657,6 +687,7 @@ const RANKS = [
 
 function finishGame() {
   running = false;
+  stopMv();
   if (bgmSource && bgmGain) {
     try {
       bgmGain.gain.setValueAtTime(bgmGain.gain.value, actx.currentTime);
@@ -687,7 +718,13 @@ function finishGame() {
 /* タブ非表示で音を止める(戻ったら再開) */
 document.addEventListener("visibilitychange", () => {
   if (!actx || !running) return;
-  if (document.hidden) actx.suspend(); else actx.resume();
+  if (document.hidden) {
+    actx.suspend();
+    if (mv.style.display !== "none") mv.pause();
+  } else {
+    actx.resume();
+    if (mv.style.display !== "none") mv.play().catch(() => {});
+  }
 });
 </script>
 </body>
