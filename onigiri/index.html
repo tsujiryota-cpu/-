@@ -95,6 +95,25 @@
     position: relative; z-index: 2;
   }
   #hud .song { font-size: .72rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #pause-btn {
+    border: none; background: rgba(255,244,236,.12); color: var(--text);
+    width: 34px; height: 34px; border-radius: 50%; font-size: .95rem;
+    font-family: inherit; cursor: pointer; flex-shrink: 0;
+  }
+  #pause-btn:active { background: rgba(255,244,236,.3); }
+  #pause-overlay {
+    position: absolute; inset: 0; z-index: 10; display: none;
+    flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+    background: rgba(20,10,6,.86); backdrop-filter: blur(4px);
+  }
+  #pause-overlay.show { display: flex; }
+  .pause-title { font-size: 1.3rem; font-weight: bold; color: var(--gold); }
+  .pause-face { width: 110px; border-radius: 50%; box-shadow: 0 6px 20px rgba(0,0,0,.5); }
+  .pause-menu-btn {
+    border: none; border-radius: 14px; padding: 15px 42px; font-size: 1.05rem; font-weight: bold;
+    font-family: inherit; cursor: pointer; color: #fff; background: #4a2c1f; min-width: 240px;
+  }
+  .pause-menu-btn.primary { background: linear-gradient(135deg, #e63946, #b5121b); box-shadow: 0 4px 0 #7a1220; }
   #score { font-size: 1.15rem; color: var(--gold); min-width: 7ch; text-align: right; }
   #game-canvas { flex: 1; width: 100%; min-height: 0; display: block; position: relative; z-index: 1; }
   /* 楽曲MV(夜の踊り子): キャンバスの透明部分から覗く。非対応ブラウザでは自動非表示 */
@@ -189,9 +208,16 @@
 <div id="game-screen" class="screen">
   <video id="mv" muted playsinline loop preload="none"></video>
   <div id="hud">
+    <button id="pause-btn" aria-label="一時停止">⏸</button>
     <span class="song">♪ バジリスクタイム</span>
     <span id="combo-hud" style="color:#ff9770"></span>
     <span id="score">0</span>
+  </div>
+  <div id="pause-overlay">
+    <p class="pause-title">一時停止中</p>
+    <img class="pause-face" data-img="resMagao" alt="">
+    <button class="pause-menu-btn primary" id="resume-btn">▶ 再開</button>
+    <button class="pause-menu-btn" id="quit-btn">🎵 曲選択にもどる</button>
   </div>
   <canvas id="game-canvas"></canvas>
   <div id="pads">
@@ -547,8 +573,8 @@ const canvas = document.getElementById("game-canvas");
 const ctx2d = canvas.getContext("2d");
 let notes = [], specials = [], flashes = [], pops = [], burst = [];
 let score = 0, combo = 0, maxCombo = 0, counts = { ryo: 0, ka: 0, fu: 0, renda: 0 };
-let soul = .25, running = false, ended = false, noteSpeed = .7;
-let mvCueTime = 0, mvSyncOffset = null;
+let soul = .25, running = false, ended = false, paused = false, noteSpeed = .7;
+let mvCueTime = 0, mvSyncOffset = null, mvCuePoint = null, mvStarted = false;
 
 /* ---- MV音声同期: 動画の音声とBGMの音量エンベロープを相互相関 ---- */
 function audioEnvelope(buf, fps, maxSec) {
@@ -607,6 +633,7 @@ document.getElementById("start-btn").addEventListener("click", async () => {
   // 曲ごとの簡単さ補正を効かせた実効パラメータ
   const cfg = { gap: d.gap * song.ez, sens: d.sens * song.ez, length: song.length };
   try {
+    if (actx) { try { actx.close(); } catch (e) {} }
     actx = new (window.AudioContext || window.webkitAudioContext)();
     if (actx.state === "suspended") await actx.resume();
     const ab = await dataUriToBuffer(song.data);
@@ -665,10 +692,13 @@ function startGame() {
 /* 楽曲MV:
    - sync: 動画内で同じ曲が流れているので、相互相関で求めたオフセット位置で1回だけ再生(完全同期)
    - cue : サビの少し前(mvCueTime)からループ再生
+   出現タイミングは曲時間(songTime)基準でゲームループが管理するため一時停止にも追従。
    再生できない環境では自動で消える */
 const mv = document.getElementById("mv");
 function startMv() {
   const song = SONGS[songKey];
+  mvStarted = false;
+  mvCuePoint = null;
   if (!song.mv) { mv.style.display = "none"; mv.removeAttribute("src"); return; }
   const isSync = song.mvMode === "sync";
   if (isSync && mvSyncOffset == null) { mv.style.display = "none"; mv.removeAttribute("src"); return; }
@@ -676,19 +706,54 @@ function startMv() {
   mv.onerror = () => { mv.style.display = "none"; };
   mv.onended = isSync ? () => { mv.style.display = "none"; } : null;
   mv.src = song.mv; // 先読みだけ開始
-  const cue = isSync ? mvSyncOffset : mvCueTime;
-  const delay = (actx ? Math.max(0, (songStart - actx.currentTime) * 1000) : 350) + cue * 1000;
-  setTimeout(() => {
-    if (!running || ended) return;
-    mv.style.display = "block";
-    try { mv.currentTime = 0; } catch (e) {}
-    mv.play().catch(() => { mv.style.display = "none"; });
-  }, delay);
+  mv.style.display = "none";
+  mvCuePoint = isSync ? mvSyncOffset : mvCueTime;
+}
+function tickMv(now) {
+  if (mvCuePoint == null || mvStarted || now < mvCuePoint) return;
+  mvStarted = true;
+  mv.style.display = "block";
+  try { mv.currentTime = SONGS[songKey].mvMode === "sync" ? Math.max(0, now - mvSyncOffset) : 0; } catch (e) {}
+  mv.play().catch(() => { mv.style.display = "none"; });
 }
 function stopMv() {
   try { mv.pause(); } catch (e) {}
   mv.style.display = "none";
+  mvCuePoint = null;
+  mvStarted = false;
 }
+
+/* ---------- 一時停止/曲選択にもどる ---------- */
+function pauseGame() {
+  if (!running || ended || paused) return;
+  paused = true;
+  try { if (actx) actx.suspend(); } catch (e) {}
+  if (mvStarted) { try { mv.pause(); } catch (e) {} }
+  document.getElementById("pause-overlay").classList.add("show");
+}
+function resumeGame() {
+  if (!paused) return;
+  paused = false;
+  document.getElementById("pause-overlay").classList.remove("show");
+  try { if (actx) actx.resume(); } catch (e) {}
+  if (mvStarted && mv.style.display !== "none") mv.play().catch(() => {});
+}
+function quitToTitle() {
+  paused = false;
+  document.getElementById("pause-overlay").classList.remove("show");
+  running = false;
+  ended = true;
+  try { if (bgmSource) bgmSource.stop(); } catch (e) {}
+  stopMv();
+  try { if (actx) actx.resume(); } catch (e) {}
+  show("title-screen");
+}
+document.getElementById("pause-btn").addEventListener("click", pauseGame);
+document.getElementById("resume-btn").addEventListener("click", resumeGame);
+document.getElementById("quit-btn").addEventListener("click", quitToTitle);
+window.addEventListener("keydown", e => {
+  if (e.key === "Escape" && running && !ended) (paused ? resumeGame : pauseGame)();
+});
 
 /* ---------- 入力 ---------- */
 function activeSpecial(now) {
@@ -729,7 +794,7 @@ function handleSpecialTap(s, type) {
 }
 
 function inputHit(type) {
-  if (!running || ended) return;
+  if (!running || ended || paused) return;
   const pad = document.getElementById(type === "don" ? "pad-don" : "pad-ka");
   pad.classList.add("hit"); setTimeout(() => pad.classList.remove("hit"), 90);
   const nowSp = songTime();
@@ -786,6 +851,7 @@ function loop() {
   const W = canvas.getBoundingClientRect().width, H = canvas.getBoundingClientRect().height;
   const now = songTime();
   ctx2d.clearRect(0, 0, W, H);
+  if (!paused) tickMv(now);
 
   // ミス判定
   for (const n of notes) {
@@ -1016,11 +1082,7 @@ function finishGame() {
 document.addEventListener("visibilitychange", () => {
   if (!actx || !running) return;
   if (document.hidden) {
-    actx.suspend();
-    if (mv.style.display !== "none") mv.pause();
-  } else {
-    actx.resume();
-    if (mv.style.display !== "none") mv.play().catch(() => {});
+    pauseGame(); // 離脱時は一時停止メニューにしておく(音・譜面・MVすべて凍結)
   }
 });
 </script>
