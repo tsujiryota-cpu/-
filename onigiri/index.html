@@ -300,7 +300,8 @@ const SONGS = {
   basilisk: { name: "バジリスクタイム(1番)", lv: 1, data: BGM_DATA, length: 92, ez: 1.5,
               mv: "dance_basilisk_v2.mov", mvMode: "sync", mvLen: 19.9 },
   youtube:  { name: "YouTubeテーマソング", lv: 2, data: YT_DATA, length: 96, ez: 1.1,
-              mv: "dance_youtube_v2.mov", mvMode: "cue", mvLen: 20.9, preroll: 1.5 },
+              mv: "dance_youtube_v2.mov", mvMode: "cue", mvLen: 20.9, preroll: 1.5,
+              trimLastChorus: true }, // 後半のサビ繰り返しがくどいのでラスサビ1個ぶん手前で終了
   yodoriko: { name: "夜の踊り子", lv: 3, data: YODORIKO_DATA, length: 65, ez: .8,
               mv: "dance_yodoriko_v2.mov", mvMode: "sync", mvLen: 13.7 }
 };
@@ -413,7 +414,7 @@ function playComboVoice(force) {
 ================================================================ */
 async function buildChart(buffer, cfg) {
   const SR = 22050;
-  const songLen = cfg.length;
+  let songLen = cfg.length;
   const len = Math.min(buffer.duration, songLen + 2) * SR | 0;
   const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
   const oac = new OAC(2, len, SR);
@@ -442,6 +443,63 @@ async function buildChart(buffer, cfg) {
     const d = (eL[f] + eH[f]) - (eL[f - 2] + eH[f - 2]);
     onset[f] = d > 0 ? d : 0;
   }
+  /* ---- サビ検出と、ラスサビの繰り返しカット ---- */
+  const winF0 = Math.min(frames - 1, (cfg.mvWin || 13.5) * SR / HOP | 0);
+  const eng = new Float32Array(frames);
+  for (let f = 0; f < frames; f++) eng[f] = eL[f] + eH[f];
+  // 最大音圧窓 = サビ代表位置
+  let accE = 0;
+  for (let f = 0; f < winF0; f++) accE += eng[f];
+  let bestE = accE, chorusF = 0;
+  for (let f = 0; f + winF0 < frames; f++) {
+    accE += eng[f + winF0] - eng[f];
+    if (accE > bestE) { bestE = accE; chorusF = f + 1; }
+  }
+  let mvCue = chorusF * HOP / SR;
+
+  if (cfg.trimLastChorus) {
+    // サビ窓をテンプレートに全体と正規化相関 → サビの出現位置を列挙
+    const T = eng.slice(chorusF, chorusF + winF0);
+    let tm = 0;
+    for (const v of T) tm += v;
+    tm /= T.length;
+    let tden = 0;
+    for (const v of T) tden += (v - tm) * (v - tm);
+    const ncc = new Float32Array(frames - winF0);
+    for (let o = 0; o < frames - winF0; o++) {
+      let m = 0;
+      for (let i = 0; i < winF0; i += 2) m += eng[o + i];
+      m /= (winF0 / 2);
+      let num = 0, den = 0;
+      for (let i = 0; i < winF0; i += 2) {
+        const a = T[i] - tm, b = eng[o + i] - m;
+        num += a * b; den += b * b;
+      }
+      ncc[o] = num / Math.sqrt((tden / 2) * den + 1e-9);
+    }
+    // ピーク抽出(しきい値0.55、最低でもサビ長の55%離す)
+    const minSep = winF0 * .55 | 0;
+    const matches = [];
+    for (let o = 1; o < ncc.length - 1; o++) {
+      if (ncc[o] < .55 || ncc[o] < ncc[o - 1] || ncc[o] < ncc[o + 1]) continue;
+      if (matches.length && o - matches[matches.length - 1].f < minSep) {
+        if (ncc[o] > matches[matches.length - 1].v) matches[matches.length - 1] = { f: o, v: ncc[o] };
+        continue;
+      }
+      matches.push({ f: o, v: ncc[o] });
+    }
+    if (matches.length >= 2) {
+      const lastStart = matches[matches.length - 1].f * HOP / SR;
+      // 終盤にある繰り返しだけカット対象(曲の55%より後ろ)
+      if (lastStart > songLen * .55 && lastStart < songLen - 3) {
+        songLen = lastStart + .4;
+        // MVの挿入位置は「カット後も丸ごと収まる最後のサビ」に合わせ直す
+        const fit = matches.filter(x => x.f * HOP / SR + (cfg.mvWin || 13.5) <= songLen + 1);
+        if (fit.length) mvCue = fit[fit.length - 1].f * HOP / SR;
+      }
+    }
+  }
+
   /* ---- テンポ推定(自己相関 60〜180BPM) ---- */
   const fps = SR / HOP;
   const minLag = Math.round(fps * 60 / 180), maxLag = Math.round(fps * 60 / 60);
@@ -508,17 +566,7 @@ async function buildChart(buffer, cfg) {
     const lp = (eL[fBest] + eL[fBest + 1]) / 2, hp = (eH[fBest] + eH[fBest + 1]) / 2;
     notes.push({ time: tSnap, type: hp > lp * .38 ? "ka" : "don", hit: false, judged: false });
   }
-  // サビ検出: エネルギー合計が最大になる窓(=MVの長さ)の開始位置(MVの再生キューに使う)
-  const winF = Math.min(frames - 1, (cfg.mvWin || 13.5) * SR / HOP | 0);
-  let acc = 0;
-  for (let f = 0; f < winF; f++) acc += eL[f] + eH[f];
-  let best = acc, bestF = 0;
-  for (let f = 0; f + winF < frames; f++) {
-    acc += eL[f + winF] + eH[f + winF] - eL[f] - eH[f];
-    if (acc > best) { best = acc; bestF = f + 1; }
-  }
-  const mvCue = bestF * HOP / SR;
-  return { notes, mvCue };
+  return { notes, mvCue, length: songLen };
 }
 
 // 解析に失敗した時の保険: 140BPM固定パターン(マスク多め)
@@ -644,8 +692,10 @@ document.getElementById("start-btn").addEventListener("click", async () => {
     });
     document.getElementById("load-text").textContent = "おにぎりポイントを検出中…";
     cfg.mvWin = song.mvLen || 13.5;
+    cfg.trimLastChorus = !!song.trimLastChorus;
     const res = await buildChart(bgmBuffer, cfg);
     notes = res.notes;
+    cfg.length = res.length; // ラスサビカットで短くなることがある
     // MVはサビ(最大音圧区間)のpreroll秒前から流し始める
     mvCueTime = Math.max(0, Math.min(res.mvCue - (song.preroll || 0), cfg.length - (song.mvLen || 14) - 1));
     if (notes.length < 30) notes = fallbackChart(cfg);
