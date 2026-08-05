@@ -619,6 +619,19 @@ function buildSpecials(notes, cfg) {
 ================================================================ */
 const canvas = document.getElementById("game-canvas");
 const ctx2d = canvas.getContext("2d");
+// roundRect未対応ブラウザ(Safari15以下など)では例外で描画ループごと死ぬためポリフィル
+if (!ctx2d.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+    r = Math.min(Math.abs(r), Math.abs(w) / 2, Math.abs(h) / 2);
+    this.moveTo(x + r, y);
+    this.arcTo(x + w, y, x + w, y + h, r);
+    this.arcTo(x + w, y + h, x, y + h, r);
+    this.arcTo(x, y + h, x, y, r);
+    this.arcTo(x, y, x + w, y, r);
+    this.closePath();
+    return this;
+  };
+}
 let notes = [], specials = [], flashes = [], pops = [], burst = [];
 let score = 0, combo = 0, maxCombo = 0, counts = { ryo: 0, ka: 0, fu: 0, renda: 0 };
 let soul = .25, running = false, ended = false, paused = false, noteSpeed = .7;
@@ -680,6 +693,7 @@ document.getElementById("start-btn").addEventListener("click", async () => {
   const d = DIFFS[diff];
   // 曲ごとの簡単さ補正を効かせた実効パラメータ
   const cfg = { gap: d.gap * song.ez, sens: d.sens * song.ez, length: song.length };
+  bgmBuffer = null; // 前の曲のバッファを持ち越さない(切替後のデコード失敗対策)
   try {
     if (actx) { try { actx.close(); } catch (e) {} }
     actx = new (window.AudioContext || window.webkitAudioContext)();
@@ -706,8 +720,7 @@ document.getElementById("start-btn").addEventListener("click", async () => {
       try { mvSyncOffset = await findMvSyncOffset(song, cfg); } catch (e) { mvSyncOffset = null; }
     }
   } catch (e) {
-    // デコード不可環境: 譜面は固定、BGMなしで続行
-    bgmBuffer = null;
+    // デコード不可 or 解析失敗: 譜面は固定パターンで続行(デコード済みならBGMは鳴る)
     notes = fallbackChart(cfg);
     mvCueTime = 14;
     mvSyncOffset = null;
@@ -721,7 +734,8 @@ document.getElementById("start-btn").addEventListener("click", async () => {
 
 function startGame() {
   score = 0; combo = 0; maxCombo = 0; counts = { ryo: 0, ka: 0, fu: 0, renda: 0 };
-  soul = .25; ended = false; flashes = []; pops = []; burst = [];
+  soul = .25; ended = false; paused = false; flashes = []; pops = []; burst = [];
+  document.getElementById("pause-overlay").classList.remove("show");
   noteSpeed = DIFFS[diff].speed;
   show("game-screen");
   resizeCanvas();
