@@ -155,9 +155,11 @@
     <h1>しげるのおにぎり</h1>
     <p class="subtitle">〜太鼓の達人風・科学的根拠0人〜<br>なめられてたまるか。</p>
     <div class="howto">
-      <img data-img="onigiri" alt="おにぎり">が流れてきたら <b style="color:#ff9770">左(おにぎり)</b> をタップ!<br>
-      <img data-img="maskitem" alt="マスク">が流れてきたら <b style="color:var(--blue)">右(マスク)</b> をタップ!<br>
-      <span style="font-size:.75rem;color:var(--muted)">キーボード: F/J=おにぎり D/K=マスク</span>
+      <img data-img="onigiri" alt="おにぎり">が流れてきたら <b style="color:#ff9770">右(おにぎり)</b> をタップ!<br>
+      <img data-img="maskitem" alt="マスク">が流れてきたら <b style="color:var(--blue)">左(マスク)</b> をタップ!<br>
+      黄色いレーンは<b style="color:var(--gold)">おにぎり食べ放題(連打)</b>、<br>
+      でっかいおにぎりは<b style="color:#ff9770">連打で完食</b>させろ!<br>
+      <span style="font-size:.75rem;color:var(--muted)">キーボード: J/K=おにぎり D/F=マスク</span>
     </div>
     <p class="diff-label">楽曲(レベル順)</p>
     <div class="diff-row">
@@ -193,8 +195,8 @@
   </div>
   <canvas id="game-canvas"></canvas>
   <div id="pads">
-    <button class="pad" id="pad-don"><img data-img="onigiri" alt="">おにぎり<small>F / J</small></button>
-    <button class="pad" id="pad-ka"><img data-img="maskitem" alt="">マスク<small>D / K</small></button>
+    <button class="pad" id="pad-ka"><img data-img="maskitem" alt="">マスク<small>D / F</small></button>
+    <button class="pad" id="pad-don"><img data-img="onigiri" alt="">おにぎり<small>J / K</small></button>
   </div>
 </div>
 
@@ -261,7 +263,7 @@ const COMBO_VOICES = ["data:audio/aac;base64,//FQgCY//CEMFQ22C0KBsKBsJQskxAZeQyu
 // ez: 譜面の簡単さ補正(ノーツ間隔・検出しきい値に掛ける。大きいほど簡単)
 // 曲自体がレベル制: Lv.1が一番やさしく、Lv.3が一番密度が高い
 const SONGS = {
-  basilisk: { name: "バジリスクタイム(1番)", lv: 1, data: BGM_DATA, length: 75, ez: 1.5 },
+  basilisk: { name: "バジリスクタイム(1番)", lv: 1, data: BGM_DATA, length: 92, ez: 1.5 },
   youtube:  { name: "YouTubeテーマソング", lv: 2, data: YT_DATA, length: 96, ez: 1.1 },
   yodoriko: { name: "夜の踊り子", lv: 3, data: YODORIKO_DATA, length: 65, ez: .8, mv: "yodoriko_mv.mov" }
 };
@@ -341,9 +343,12 @@ function playHitSound(type) {
   }
 }
 
-let voiceBag = [];
-function playComboVoice() {
+let voiceBag = [], lastVoiceAt = 0;
+function playComboVoice(force) {
   if (!COMBO_VOICES.length) return;
+  // 直前の音声と被らないよう最低2.5秒あける(強制時は無視)
+  if (!force && performance.now() - lastVoiceAt < 2500) return;
+  lastVoiceAt = performance.now();
   if (!voiceBag.length) {
     voiceBag = COMBO_VOICES.map((_, i) => i);
     for (let i = voiceBag.length - 1; i > 0; i--) {
@@ -410,22 +415,33 @@ async function buildChart(buffer, cfg) {
     if (t < 1.2 || t > songLen - 1) continue;
     if (t - lastT < minGap) continue;
     lastT = t;
-    // 帯域比で種類判定(直近2フレーム平均)
+    // 帯域比で種類判定(直近2フレーム平均)。マスク多めのしきい値
     const lp = (eL[f] + eL[f+1]) / 2, hp = (eH[f] + eH[f+1]) / 2;
-    notes.push({ time: t, type: hp > lp * .55 ? "ka" : "don", hit: false, judged: false });
+    notes.push({ time: t, type: hp > lp * .38 ? "ka" : "don", hit: false, judged: false });
   }
-  return notes;
+  // サビ検出: エネルギー合計が最大になる13.5秒窓の開始位置(MVの再生キューに使う)
+  const winF = Math.min(frames - 1, 13.5 * SR / HOP | 0);
+  let acc = 0;
+  for (let f = 0; f < winF; f++) acc += eL[f] + eH[f];
+  let best = acc, bestF = 0;
+  for (let f = 0; f + winF < frames; f++) {
+    acc += eL[f + winF] + eH[f + winF] - eL[f] - eH[f];
+    if (acc > best) { best = acc; bestF = f + 1; }
+  }
+  const mvCue = bestF * HOP / SR;
+  return { notes, mvCue };
 }
 
-// 解析に失敗した時の保険: 140BPM固定パターン
+// 解析に失敗した時の保険: 140BPM固定パターン(マスク多め)
 function fallbackChart(cfg) {
   const notes = [];
   const beat = 60 / 140;
-  const pat = ["don","don","ka","don", "don","ka","don","ka", "don","don","don","ka", "ka","don","ka","don"];
+  const pat = ["don","ka","ka","don", "don","ka","don","ka", "ka","don","don","ka", "ka","don","ka","don"];
   let t = 1.5, i = 0;
   const step = cfg.gap < .2 ? beat / 2 : (cfg.gap < .3 ? beat * .75 : beat);
   while (t < cfg.length - 1) {
     if (cfg.gap > .3 && i % 4 === 3) { i++; t += step; continue; } // easyは間引き
+    if (i > 0 && i % 24 === 0) { t += 4.2; } // 定期的に隙間を空けて連打/風船ゾーンに
     notes.push({ time: t, type: pat[i % pat.length], hit: false, judged: false });
     i++; t += step;
   }
@@ -433,13 +449,46 @@ function fallbackChart(cfg) {
 }
 
 /* ================================================================
+   連打(おにぎり食べ放題)と風船(でっかいおにぎり完食チャレンジ)
+   譜面の隙間に自動配置する
+================================================================ */
+function buildSpecials(notes, cfg) {
+  const specials = [];
+  const need = { easy: 8, normal: 11, hard: 14 }[diff] || 11;
+  let rendaCount = 0, balloonCount = 0;
+  for (let i = 0; i < notes.length - 1; i++) {
+    const gap = notes[i + 1].time - notes[i].time;
+    if (gap >= 5 && rendaCount < 4) {
+      const start = notes[i].time + 1.2;
+      const end = Math.min(notes[i + 1].time - 1.2, start + 6);
+      specials.push({ kind: "renda", start, end, taps: 0 });
+      rendaCount++;
+    } else if (gap >= 3.0 && gap < 5 && balloonCount < 3) {
+      specials.push({ kind: "balloon", time: notes[i].time + 1.0, dur: Math.min(2.8, gap - 1.4), need, taps: 0, done: false, failed: false });
+      balloonCount++;
+    }
+  }
+  // 隙間のない曲でも最低1個は風船を出す(いちばん広い隙間に差し込む)
+  if (!specials.length && notes.length > 10) {
+    let gi = 0, g = 0;
+    for (let i = 0; i < notes.length - 1; i++) {
+      const d = notes[i + 1].time - notes[i].time;
+      if (d > g) { g = d; gi = i; }
+    }
+    if (g >= 2.2) specials.push({ kind: "balloon", time: notes[gi].time + .8, dur: Math.max(1.4, g - 1.4), need: Math.min(need, 9), taps: 0, done: false, failed: false });
+  }
+  return specials;
+}
+
+/* ================================================================
    ゲーム本体
 ================================================================ */
 const canvas = document.getElementById("game-canvas");
 const ctx2d = canvas.getContext("2d");
-let notes = [], flashes = [], pops = [], burst = [];
-let score = 0, combo = 0, maxCombo = 0, counts = { ryo: 0, ka: 0, fu: 0 };
+let notes = [], specials = [], flashes = [], pops = [], burst = [];
+let score = 0, combo = 0, maxCombo = 0, counts = { ryo: 0, ka: 0, fu: 0, renda: 0 };
 let soul = .25, running = false, ended = false, noteSpeed = .7;
+let mvCueTime = 0;
 
 function resizeCanvas() {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -467,19 +516,24 @@ document.getElementById("start-btn").addEventListener("click", async () => {
       if (p && p.catch) p.catch(() => {}); // コールバック形式でも返るPromiseの未処理拒否を握りつぶす
     });
     document.getElementById("load-text").textContent = "おにぎりポイントを検出中…";
-    notes = await buildChart(bgmBuffer, cfg);
+    const res = await buildChart(bgmBuffer, cfg);
+    notes = res.notes;
+    // MVはサビ(最大音圧区間)の6秒前から流し始める
+    mvCueTime = Math.max(0, Math.min(res.mvCue - 6, cfg.length - 15));
     if (notes.length < 30) notes = fallbackChart(cfg);
   } catch (e) {
     // デコード不可環境: 譜面は固定、BGMなしで続行
     bgmBuffer = null;
     notes = fallbackChart(cfg);
+    mvCueTime = 14;
   }
+  specials = buildSpecials(notes, cfg);
   document.querySelector("#hud .song").textContent = "♪ " + song.name;
   startGame();
 });
 
 function startGame() {
-  score = 0; combo = 0; maxCombo = 0; counts = { ryo: 0, ka: 0, fu: 0 };
+  score = 0; combo = 0; maxCombo = 0; counts = { ryo: 0, ka: 0, fu: 0, renda: 0 };
   soul = .25; ended = false; flashes = []; pops = []; burst = [];
   noteSpeed = DIFFS[diff].speed;
   show("game-screen");
@@ -498,16 +552,18 @@ function startGame() {
   requestAnimationFrame(loop);
 }
 
-/* 楽曲MV: 曲の開始に合わせてループ再生(再生できない環境では自動で消える) */
+/* 楽曲MV: サビの少し前(mvCueTime)から曲に合わせてループ再生。
+   再生できない環境では自動で消える */
 const mv = document.getElementById("mv");
 function startMv() {
   const src = SONGS[songKey].mv;
   if (!src) { mv.style.display = "none"; mv.removeAttribute("src"); return; }
-  mv.style.display = "block";
   mv.onerror = () => { mv.style.display = "none"; };
-  mv.src = src;
-  const delay = actx ? Math.max(0, (songStart - actx.currentTime) * 1000) : 350;
+  mv.src = src; // 先読みだけ開始
+  const delay = (actx ? Math.max(0, (songStart - actx.currentTime) * 1000) : 350) + mvCueTime * 1000;
   setTimeout(() => {
+    if (!running || ended) return;
+    mv.style.display = "block";
     try { mv.currentTime = 0; } catch (e) {}
     mv.play().catch(() => { mv.style.display = "none"; });
   }, delay);
@@ -518,10 +574,48 @@ function stopMv() {
 }
 
 /* ---------- 入力 ---------- */
+function activeSpecial(now) {
+  for (const s of specials) {
+    if (s.kind === "renda" && now >= s.start && now <= s.end) return s;
+    if (s.kind === "balloon" && !s.done && !s.failed && now >= s.time && now <= s.time + s.dur) return s;
+  }
+  return null;
+}
+
+function handleSpecialTap(s, type) {
+  const nowMs = performance.now();
+  if (s.kind === "renda") {
+    s.taps++; counts.renda++;
+    score += 150;
+    soul = Math.min(1, soul + .004);
+    playHitSound(type);
+    for (let i = 0; i < 4; i++) burst.push({ t0: nowMs, a: Math.random() * Math.PI * 2, v: 80 + Math.random() * 180, type: "don" });
+    if (s.taps % 4 === 0) flashes.push({ img: loadImg(FACE_DON[Math.floor(Math.random() * FACE_DON.length)]), t0: nowMs });
+  } else {
+    s.taps++; counts.renda++;
+    score += 200;
+    playHitSound("don");
+    for (let i = 0; i < 3; i++) burst.push({ t0: nowMs, a: Math.random() * Math.PI * 2, v: 60 + Math.random() * 140, type: "don" });
+    if (s.taps >= s.need && !s.done) {
+      s.done = true;
+      score += 2000;
+      soul = Math.min(1, soul + .06);
+      pops.push({ text: "完食!!うまい!", color: "#ffd166", t0: nowMs });
+      flashes.push({ img: loadImg(CUTIN[Math.floor(Math.random() * CUTIN.length)]), t0: nowMs, big: true });
+      for (let i = 0; i < 20; i++) burst.push({ t0: nowMs, a: Math.random() * Math.PI * 2, v: 120 + Math.random() * 260, type: Math.random() < .5 ? "don" : "ka" });
+      playComboVoice(true);
+    }
+  }
+  updateHud();
+}
+
 function inputHit(type) {
   if (!running || ended) return;
   const pad = document.getElementById(type === "don" ? "pad-don" : "pad-ka");
   pad.classList.add("hit"); setTimeout(() => pad.classList.remove("hit"), 90);
+  const nowSp = songTime();
+  const sp = activeSpecial(nowSp);
+  if (sp) { handleSpecialTap(sp, type); return; }
   playHitSound(type);
   const now = songTime();
   let best = null, bestD = 1e9;
@@ -538,10 +632,12 @@ function inputHit(type) {
   else { j = "ka"; score += 500 + Math.min(combo, 100) * 5; soul = Math.min(1, soul + .011); }
   counts[j]++;
   combo++; maxCombo = Math.max(maxCombo, combo);
-  if (combo > 0 && combo % 25 === 0) {
-    playComboVoice();
+  if (combo > 0 && combo % 15 === 0) {
+    playComboVoice(true);
     // レアしげる降臨カットイン
     flashes.push({ img: loadImg(CUTIN[Math.floor(Math.random() * CUTIN.length)]), t0: performance.now(), big: true });
+  } else if (Math.random() < .06) {
+    playComboVoice(); // ところどころランダムでも乱入
   }
   // 顔フラッシュ(半透明のしげる)
   const pool = type === "don" ? FACE_DON : FACE_KA;
@@ -556,8 +652,8 @@ document.getElementById("pad-ka").addEventListener("pointerdown", e => { e.preve
 window.addEventListener("keydown", e => {
   if (e.repeat) return;
   const k = e.key.toLowerCase();
-  if (k === "f" || k === "j") inputHit("don");
-  if (k === "d" || k === "k") inputHit("ka");
+  if (k === "j" || k === "k") inputHit("don");
+  if (k === "d" || k === "f") inputHit("ka");
 });
 
 function updateHud() {
@@ -579,6 +675,13 @@ function loop() {
       counts.fu++; combo = 0; soul = Math.max(0, soul - .04);
       pops.push({ text: "遺憾", color: "#8b8b8b", t0: performance.now() });
       updateHud();
+    }
+  }
+  // 風船の食べ残し判定
+  for (const s of specials) {
+    if (s.kind === "balloon" && !s.done && !s.failed && now > s.time + s.dur) {
+      s.failed = true;
+      pops.push({ text: "食べ残し…遺憾", color: "#8b8b8b", t0: performance.now() });
     }
   }
 
@@ -619,8 +722,51 @@ function loop() {
     ctx2d.globalAlpha = 1;
   }
 
-  // ノーツ
+  // 連打ゾーン(黄色バー)と風船(でっかいおにぎり)
   const onigiriImg = loadImg(IMG.onigiri), maskImg = loadImg(IMG.maskitem);
+  for (const s of specials) {
+    if (s.kind === "renda") {
+      const xs = hitX + (s.start - now) * pxPerSec;
+      const xe = hitX + (s.end - now) * pxPerSec;
+      if (xe < -60 || xs > W + 60) continue;
+      const h2 = noteR * .85;
+      ctx2d.fillStyle = "rgba(255,209,102,.85)";
+      ctx2d.beginPath();
+      ctx2d.roundRect(Math.max(xs, -40), laneY - h2, Math.max(xe, -30) - Math.max(xs, -40), h2 * 2, h2);
+      ctx2d.fill();
+      ctx2d.strokeStyle = "#b5121b"; ctx2d.lineWidth = 4; ctx2d.stroke();
+      if (onigiriImg.complete) {
+        const s2 = h2 * 1.7, ar = onigiriImg.naturalHeight / onigiriImg.naturalWidth;
+        ctx2d.drawImage(onigiriImg, Math.max(xs, -40) - s2 * .3, laneY - s2 * ar / 2, s2, s2 * ar);
+      }
+      if (now >= s.start && now <= s.end) {
+        ctx2d.font = "bold 20px sans-serif"; ctx2d.textAlign = "center";
+        ctx2d.fillStyle = "#ffd166";
+        ctx2d.fillText(`🍙おにぎり食べ放題!! ×${s.taps}`, W / 2, laneY - noteR - 24);
+      }
+    } else {
+      if (s.done || s.failed) continue;
+      const x = now < s.time ? hitX + (s.time - now) * pxPerSec : hitX;
+      if (x > W + 80) continue;
+      const active = now >= s.time;
+      const pulse = active ? 1 + Math.sin(performance.now() / 70) * .08 : 1;
+      const R = noteR * 1.65 * pulse;
+      ctx2d.beginPath(); ctx2d.arc(x, laneY, R, 0, Math.PI * 2);
+      ctx2d.fillStyle = "#f4e9dd"; ctx2d.fill();
+      ctx2d.lineWidth = 6; ctx2d.strokeStyle = "#ffd166"; ctx2d.stroke();
+      if (onigiriImg.complete && onigiriImg.naturalWidth) {
+        const s2 = R * 1.8, ar = onigiriImg.naturalHeight / onigiriImg.naturalWidth;
+        ctx2d.drawImage(onigiriImg, x - s2 / 2, laneY - s2 * ar / 2, s2, s2 * ar);
+      }
+      if (active) {
+        ctx2d.font = "bold 22px sans-serif"; ctx2d.textAlign = "center";
+        ctx2d.fillStyle = "#ff9770";
+        ctx2d.fillText(`あと${Math.max(0, s.need - s.taps)}連打で完食!`, W / 2, laneY - noteR - 24);
+      }
+    }
+  }
+
+  // ノーツ
   for (const n of notes) {
     if (n.hit) continue;
     const x = hitX + (n.time - now) * pxPerSec;
@@ -666,8 +812,9 @@ function loop() {
     ctx2d.globalAlpha = 1;
   }
 
-  // 終了判定
-  const last = notes.length ? notes[notes.length - 1].time : 0;
+  // 終了判定(連打・風船の終わりも待つ)
+  let last = notes.length ? notes[notes.length - 1].time : 0;
+  for (const s of specials) last = Math.max(last, s.kind === "renda" ? s.end : s.time + s.dur);
   if (!ended && now > last + 1.6) {
     ended = true;
     finishGame();
