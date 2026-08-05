@@ -626,7 +626,7 @@ const SOUND_EVENTS = {
 /* 回答ごとの効果音はランダム再生:
  *   種類  … BGM以外の効果音から重複しないよう順番にシャッフル抽選
  *   タイミング … ①回答ボタンを押した瞬間 ②次の質問に行った瞬間
- *               ③次の質問に行ってから3秒後 の3パターンからランダム */
+ *               ③次の質問に行ってから2秒後 の3パターンからランダム */
 const RANDOM_SFX_EXCLUDE = [BGM_INDEX, RESULT_BGM_INDEX]; // ランダム抽選から外す音声
 
 /* axis: どの軸の質問か(0〜3)
@@ -799,7 +799,7 @@ const TYPES = {
   WDSJ: { name: "ワホー", tagline: "ようこそ!私のチャンネルへ!",
     desc: "誰が来ても全力で歓迎する、人類ウェルカム係。初対面への挨拶だけで好感度をカンストさせるが、その後の会話が続くかは別問題。歓迎したあと静かになる。",
     manual: "挨拶されたら同じテンションで返してください。返さないと和室に帰ります。",
-    neta: "syamuの動画冒頭の名物挨拶「ようこそ!私のチャンネルへ!ワホー!」より。「わーお」はワクワクさんの相棒ゴロリが元ネタという説がある。",
+    neta: "セイキンがミンティアを食べた瞬間に放った奇声「ワホー!」より。あまりの爽快感に人格が変わる様子が話題となり、ミンティアのCMかと見紛う勢いのテンションが愛され続けている。",
     best: "BDSJ", worst: "WIKC" },
   WDKC: { name: "じゃがバター", tagline: "ホクホク。以上。",
     desc: "祭りの屋台で一番地味で一番うまいアレ。主張しない、映えない、でも全員がなんだかんだ買う。あなたは居るだけで場の温度を2度上げる炭水化物系ヒーラー。",
@@ -947,7 +947,7 @@ function showQuestion() {
 
 function goBack() {
   if (!history.length) return;
-  clearTimeout(sfxTimer); // 予約済みの3秒後効果音をキャンセル
+  clearTimeout(sfxTimer); // 予約済みの2秒後効果音をキャンセル
   const prev = history.pop();
   scores[prev.axis] -= prev.score;
   current--;
@@ -958,14 +958,14 @@ function answer(axis, score) {
   scores[axis] += score;
   history.push({ axis, score });
   current++;
-  clearTimeout(sfxTimer); // 前の回の3秒後再生が残っていたらキャンセル
+  clearTimeout(sfxTimer); // 前の回の2秒後再生が残っていたらキャンセル
   const snd = nextRandomSfx();
   const timing = Math.floor(Math.random() * 3);
   if (current < shuffled.length) {
     if (timing === 0) play(snd);            // ①回答ボタンを押した瞬間
     showQuestion();
     if (timing === 1) play(snd);            // ②次の質問に行った瞬間
-    if (timing === 2) sfxTimer = setTimeout(() => play(snd), 3000); // ③3秒後
+    if (timing === 2) sfxTimer = setTimeout(() => play(snd), 2000); // ③2秒後
   } else {
     showResult(); // 最終問は結果画面のBGM切替に任せる
   }
