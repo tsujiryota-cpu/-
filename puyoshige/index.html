@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>ぷよしげ【落ちもの・科学的根拠0人】</title>
+<title>CRしげさん【落ちもの・科学的根拠0人】</title>
 <meta name="description" content="同じ顔を4つつなげて消せ。連鎖で大当たり、バジリスクタイム突入。脳汁保証。">
-<meta property="og:title" content="🎰 ぷよしげ【落ちものパズル】">
+<meta property="og:title" content="🎰 CRしげさん【落ちものパズル】">
 <meta property="og:description" content="連鎖で大当たり、バジリスクタイム突入。なめられてたまるか。">
 <meta property="og:type" content="website">
 <style>
@@ -482,7 +482,7 @@
     <div class="title-puyos">
       <img data-img="onigiri"><img data-img="maskitem"><img data-img="portrait"><img data-img="syamu">
     </div>
-    <h1>ぷよしげ</h1>
+    <h1>CRしげさん</h1>
     <p class="subtitle">〜落ちものパズル・科学的根拠0人〜<br>連鎖で大当たり。脳汁保証。</p>
     <div class="howto">
       🍙😷😐👶 同じ顔を<b style="color:var(--gold)">タテヨコ4つ</b>つなげると消える<br>
@@ -672,19 +672,47 @@ function ensureCtx() {
   if (actx.state === "suspended") actx.resume();
   return actx;
 }
+/* Audio要素はsrcごとにプールして再利用する。
+   毎回 new Audio(巨大データURI)+MediaElementSource を作って接続しっぱなしだと
+   オーディオグラフが際限なく肥大化し、プレイ後半でどんどん重くなるため。 */
+const audioPool = new Map(); // src → Audio要素の配列
+function poolFree(a) { return a.ended || (a.paused && a.currentTime === 0); }
 function playAudio(src, vol) {
   try {
-    const a = new Audio(src);
-    a.volume = vol;
-    try {
-      const ctx = ensureCtx();
-      const node = ctx.createMediaElementSource(a);
-      const g = ctx.createGain();
-      g.gain.value = vol;
-      node.connect(g).connect(ctx.destination);
+    let pool = audioPool.get(src);
+    if (!pool) { pool = []; audioPool.set(src, pool); }
+    let a = pool.find(poolFree);
+    if (!a) {
+      if (pool.length >= 4) {
+        // 上限超過分はWebAudio非接続の使い捨て(参照が切れればGCされる)
+        const t = new Audio(src);
+        t.volume = vol;
+        t.play().catch(() => {});
+        return t;
+      }
+      a = new Audio(src);
+      try {
+        const ctx = ensureCtx();
+        const node = ctx.createMediaElementSource(a);
+        const g = ctx.createGain();
+        node.connect(g).connect(ctx.destination);
+        a._gain = g;
+      } catch (e) {}
+      pool.push(a);
+    }
+    a.onended = null;
+    a.ontimeupdate = null;
+    a.loop = false;
+    a._fading = false;
+    try { a.currentTime = 0; } catch (e) {}
+    if (a._gain && actx) {
+      const g = a._gain.gain;
+      g.cancelScheduledValues(actx.currentTime);
+      g.setValueAtTime(vol, actx.currentTime);
       a.volume = 1;
-      a._gain = g;
-    } catch (e) {}
+    } else {
+      a.volume = vol;
+    }
     a.play().catch(() => {});
     return a;
   } catch (e) { return null; }
@@ -722,16 +750,16 @@ function startFeverBgm(src) {
   if (feverEl) feverEl.loop = true;
 }
 function endFeverBgm() {
-  if (feverEl) { try { feverEl.pause(); } catch (e) {} feverEl = null; }
+  if (feverEl) { try { feverEl.pause(); feverEl.loop = false; feverEl.currentTime = 0; } catch (e) {} feverEl = null; } // 巻き戻してプールへ返却
   if (running && !paused && !(kishidaEl && !kishidaEl.ended)) {
     if (rotEl && rotEl.currentTime > 0 && !rotEl.ended) rotEl.play().catch(() => {});
     else playRotation();
   }
 }
 function stopBgm() {
-  if (rotEl) { try { rotEl.pause(); } catch (e) {} rotEl = null; }
-  if (feverEl) { try { feverEl.pause(); } catch (e) {} feverEl = null; }
-  if (kishidaEl) { try { kishidaEl.pause(); } catch (e) {} kishidaEl = null; }
+  if (rotEl) { try { rotEl.pause(); rotEl.currentTime = 0; } catch (e) {} rotEl = null; }
+  if (feverEl) { try { feverEl.pause(); feverEl.loop = false; feverEl.currentTime = 0; } catch (e) {} feverEl = null; }
+  if (kishidaEl) { try { kishidaEl.pause(); kishidaEl.currentTime = 0; } catch (e) {} kishidaEl = null; }
 }
 function activeBgm() {
   if (kishidaEl && !kishidaEl.ended) return kishidaEl; // 岸田降臨中は遊戯王が最優先
@@ -1955,7 +1983,7 @@ function gameOver() {
   document.getElementById("st-jack").textContent = jackpots;
   document.getElementById("st-clear").textContent = cleared;
   document.getElementById("st-level").textContent = level;
-  const text = `🎰ぷよしげ🎰 スコア${score.toLocaleString()} 最大${maxChain}連鎖 大当たり${jackpots}回 Lv.${level} ランク${r.rank} ${r.quote}`;
+  const text = `🎰CRしげさん🎰 スコア${score.toLocaleString()} 最大${maxChain}連鎖 大当たり${jackpots}回 Lv.${level} ランク${r.rank} ${r.quote}`;
   document.getElementById("share-x").href =
     "https://twitter.com/intent/tweet?text=" + encodeURIComponent(text) + "&url=" + encodeURIComponent(location.href);
   setTimeout(() => {
