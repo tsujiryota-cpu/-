@@ -78,6 +78,25 @@
     padding: 4px 6px 8px; font-weight: bold; gap: 10px;
   }
   #time { font-size: 1.3rem; color: var(--text); min-width: 3ch; }
+  #pause-btn {
+    border: none; background: rgba(244,255,238,.14); color: var(--text);
+    width: 34px; height: 34px; border-radius: 50%; font-size: .95rem;
+    font-family: inherit; cursor: pointer; flex-shrink: 0;
+  }
+  #pause-btn:active { background: rgba(244,255,238,.32); }
+  #pause-overlay {
+    position: fixed; inset: 0; z-index: 30; display: none;
+    flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+    background: rgba(8,18,5,.88); backdrop-filter: blur(4px);
+  }
+  #pause-overlay.show { display: flex; }
+  .pause-title { font-size: 1.3rem; font-weight: bold; color: var(--gold); }
+  .pause-face { width: 110px; border-radius: 50%; box-shadow: 0 6px 20px rgba(0,0,0,.5); }
+  .pause-menu-btn {
+    border: none; border-radius: 14px; padding: 15px 42px; font-size: 1.05rem; font-weight: bold;
+    font-family: inherit; cursor: pointer; color: #fff; background: #35521f; min-width: 240px;
+  }
+  .pause-menu-btn.primary { background: linear-gradient(135deg, #e63946, #b5121b); box-shadow: 0 4px 0 #7a1220; }
   #time.hurry { color: var(--red); animation: blink .5s steps(2) infinite; }
   @keyframes blink { 50% { opacity: .4; } }
   #combo-hud { color: #ff9770; font-size: .9rem; }
@@ -157,12 +176,12 @@
   <div>
     <img class="title-mash" data-img="mash" alt="しげる">
     <h1>しげる叩き</h1>
-    <p class="subtitle">〜もぐらたたき風・科学的根拠0人〜<br>これは国益をかけた60秒の戦いです。</p>
+    <p class="subtitle">〜もぐらたたき風・科学的根拠0人〜<br>これは国益をかけた45秒の戦いです。</p>
     <div class="howto">
       <img data-img="don0"><img data-img="don2"> <b style="color:var(--gold)">おにぎり泥棒しげる</b> → 叩け!(+100)<br>
       <img data-img="ka0"> <b style="color:var(--muted)">マスクしげる</b> → 叩け(おにぎり食べてないので+50)<br>
       <img data-img="wakai"> <b style="color:#ff9770">若しげる</b> → +300 / <img data-img="mash"> <b style="color:var(--red)">マッシュ</b> → +500<br>
-      <img data-img="syamu0"><img data-img="syamu1"><img data-img="yaju0"><img data-img="yaju1"> <b style="color:var(--blue)">貝塚勃起土竜(syamu)一味</b> → 叩くな!(−200)<br>
+      <img data-img="syamu0"><img data-img="syamu1"><img data-img="yaju0"><img data-img="yaju1"> <b style="color:var(--blue)">貝塚勃起土竜(syamu)&野獣先輩</b> → 叩くな!(−200)<br>
       <img data-img="syamuDummy"><img data-img="yajuDummy0"><img data-img="yajuDummy1"> <b style="color:var(--blue)">偽しげる</b>も出るぞ。顔をよく見ろ。<br>
       <span style="font-size:.74rem;color:var(--muted)">連続で叩くとコンボボーナス。ラスト10秒はフィーバー。</span>
     </div>
@@ -180,9 +199,16 @@
 <!-- ================= ゲーム ================= -->
 <div id="game-screen" class="screen">
   <div id="hud">
-    <span id="time">60</span>
+    <button id="pause-btn" aria-label="一時停止">⏸</button>
+    <span id="time">45</span>
     <span id="combo-hud"></span>
     <span id="score">0</span>
+  </div>
+  <div id="pause-overlay">
+    <p class="pause-title">一時中断</p>
+    <img class="pause-face" data-img="magao" alt="">
+    <button class="pause-menu-btn primary" id="resume-btn">▶ 再開</button>
+    <button class="pause-menu-btn" id="home-btn">🏠 ホームにもどる</button>
   </div>
   <div id="timebar"><div id="timebar-fill"></div></div>
   <div id="fever-label"></div>
@@ -255,7 +281,7 @@ Object.values(IMG).forEach(src => { const i = new Image(); i.src = src; });
 /* ================================================================
    設定
 ================================================================ */
-const GAME_LEN = 60;   // 秒
+const GAME_LEN = 45;   // 秒(60秒は長かったので短縮)
 const FEVER_AT = 10;   // 残りこの秒数からフィーバー
 const DIFFS = {
   easy:   { name: "おだやか",           interval: 950, stay: 1350, maskW: .12, multi: 1 },
@@ -298,14 +324,37 @@ function playAudio(src, vol) {
     return a;
   } catch (e) { return null; }
 }
-let bgmEl = null;
+let bgmEl = null, bgmGainNode = null;
 function startBgm() {
   stopBgm();
-  bgmEl = playAudio(BGM_DATA, .4);
-  if (bgmEl) bgmEl.loop = true;
+  try {
+    bgmEl = new Audio(BGM_DATA);
+    bgmEl.loop = true;
+    try {
+      const ctx = ensureCtx();
+      const node = ctx.createMediaElementSource(bgmEl);
+      bgmGainNode = ctx.createGain();
+      bgmGainNode.gain.value = .4;
+      node.connect(bgmGainNode).connect(ctx.destination);
+      bgmEl.volume = 1;
+    } catch (e) { bgmEl.volume = .4; }
+    bgmEl.play().catch(() => {});
+  } catch (e) {}
 }
 function stopBgm() {
   if (bgmEl) { try { bgmEl.pause(); } catch (e) {} bgmEl = null; }
+  bgmGainNode = null;
+}
+function fadeBgm(sec) {
+  try {
+    if (bgmGainNode && actx) {
+      bgmGainNode.gain.setValueAtTime(bgmGainNode.gain.value, actx.currentTime);
+      bgmGainNode.gain.linearRampToValueAtTime(0, actx.currentTime + sec);
+      const el = bgmEl;
+      setTimeout(() => { try { el.pause(); } catch (e) {} }, sec * 1000);
+      bgmEl = null; bgmGainNode = null;
+    } else stopBgm();
+  } catch (e) { stopBgm(); }
 }
 function thump() { // 叩いた音(合成)
   try {
@@ -371,8 +420,37 @@ for (let i = 0; i < 9; i++) {
 }
 
 let score = 0, combo = 0, maxCombo = 0, hits = 0, bads = 0, rares = 0, misses = 0;
-let timeLeft = GAME_LEN, running = false, fever = false;
+let timeLeft = GAME_LEN, running = false, fever = false, paused = false;
 let spawnTimer = null, tickTimer = null;
+
+/* ---------- 一時中断/ホームにもどる ---------- */
+function pauseGame() {
+  if (!running || paused) return;
+  paused = true;
+  clearInterval(tickTimer);
+  clearTimeout(spawnTimer);
+  holes.forEach(h => hide(h, false)); // 出てる面々は引っ込める(タイマー凍結のため)
+  if (bgmEl) { try { bgmEl.pause(); } catch (e) {} }
+  document.getElementById("pause-overlay").classList.add("show");
+}
+function resumeGame() {
+  if (!paused) return;
+  paused = false;
+  document.getElementById("pause-overlay").classList.remove("show");
+  if (bgmEl) bgmEl.play().catch(() => {});
+  spawn();
+  startTick();
+}
+function goHome() {
+  paused = false;
+  document.getElementById("pause-overlay").classList.remove("show");
+  running = false;
+  clearInterval(tickTimer);
+  clearTimeout(spawnTimer);
+  holes.forEach(h => hide(h, false));
+  stopBgm();
+  show("title-screen");
+}
 
 function updateHud() {
   document.getElementById("score").textContent = score.toLocaleString();
@@ -392,7 +470,7 @@ function pickType() {
 }
 
 function spawn() {
-  if (!running) return;
+  if (!running || paused) return;
   const d = DIFFS[diff];
   const free = holes.filter(h => !h.up);
   const count = Math.min(free.length, fever ? d.multi + 1 : d.multi);
@@ -436,7 +514,7 @@ function popText(hole, text, color) {
 }
 
 function whack(hole) {
-  if (!running || !hole.up || hole.whacked) return;
+  if (!running || paused || !hole.up || hole.whacked) return;
   hole.whacked = true;
   const type = hole.type;
   thump();
@@ -491,10 +569,18 @@ function startTick() {
   }, 1000);
 }
 
+document.getElementById("pause-btn").addEventListener("click", pauseGame);
+document.getElementById("resume-btn").addEventListener("click", resumeGame);
+document.getElementById("home-btn").addEventListener("click", goHome);
+window.addEventListener("keydown", e => {
+  if (e.key === "Escape" && running) (paused ? resumeGame : pauseGame)();
+});
+
 document.getElementById("start-btn").addEventListener("click", () => {
   ensureCtx();
   score = 0; combo = 0; maxCombo = 0; hits = 0; bads = 0; rares = 0; misses = 0;
-  timeLeft = GAME_LEN; fever = false;
+  timeLeft = GAME_LEN; fever = false; paused = false;
+  document.getElementById("pause-overlay").classList.remove("show");
   document.getElementById("fever-label").textContent = "";
   document.getElementById("time").classList.remove("hurry");
   holes.forEach(h => hide(h, false));
@@ -520,7 +606,7 @@ function finish() {
   clearInterval(tickTimer);
   clearTimeout(spawnTimer);
   holes.forEach(h => hide(h, false));
-  stopBgm();
+  fadeBgm(1.2); // きちっとフェードアウトで締める
   const r = RANKS.find(x => score >= x.min);
   document.getElementById("result-rank").textContent = r.rank;
   document.getElementById("result-quote").textContent = r.quote;
@@ -539,22 +625,9 @@ function finish() {
   }, 600);
 }
 
-/* タブ離脱中は完全一時停止(タイマー・出現・BGMすべて停止、復帰で再開) */
-let wasHidden = false;
+/* タブ離脱時は一時中断メニューにしておく(復帰したら「再開」を押す) */
 document.addEventListener("visibilitychange", () => {
-  if (!running) return;
-  if (document.hidden) {
-    wasHidden = true;
-    clearInterval(tickTimer);
-    clearTimeout(spawnTimer);
-    holes.forEach(h => hide(h, false));
-    stopBgm();
-  } else if (wasHidden) {
-    wasHidden = false;
-    startBgm();
-    spawn();
-    startTick();
-  }
+  if (running && document.hidden) pauseGame();
 });
 </script>
 </body>
