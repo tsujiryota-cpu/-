@@ -90,16 +90,14 @@
   #score { font-size: 1.2rem; color: var(--gold); flex: 1; text-align: right; }
   #fever-hud { color: var(--red); font-size: .85rem; min-width: 5ch; }
   #level-hud { color: var(--muted); font-size: .8rem; }
-  #main-area { flex: 1; display: flex; gap: 8px; min-height: 0; justify-content: center; }
+  #main-area { flex: 1; display: flex; gap: 8px; min-height: 0; justify-content: center; align-items: center; }
   #board-wrap {
-    position: relative; height: 100%; aspect-ratio: 6 / 12;
-    max-width: 62vw;
-  }
-  #board {
-    width: 100%; height: 100%; display: block;
+    position: relative;
     background: rgba(0,0,0,.42);
     border: 2px solid #4a3573; border-radius: 10px;
+    overflow: hidden;
   }
+  #board { width: 100%; height: 100%; display: block; }
   #board-wrap.shake { animation: shake .3s; }
   @keyframes shake {
     0%,100% { transform: translate(0,0); }
@@ -119,6 +117,33 @@
   .stat-box { background: var(--card); border-radius: 12px; padding: 8px 6px; text-align: center; }
   .stat-box p { font-size: .6rem; color: var(--muted); }
   .stat-box b { font-size: 1rem; color: #ff9770; }
+  .stat-mini b { font-size: .85rem; }
+
+  /* ---------- パチンコ盤面「茂のお仕事」 ---------- */
+  #pachi {
+    background: linear-gradient(160deg, #2b1b12, #1a0f0a);
+    border: 2px solid #c9a227; border-radius: 12px;
+    padding: 7px 4px; text-align: center;
+    box-shadow: inset 0 0 12px rgba(255,209,102,.15), 0 4px 12px rgba(0,0,0,.4);
+  }
+  .pachi-title { font-size: .6rem; color: var(--gold); font-weight: bold; }
+  .pachi-title span { color: var(--muted); font-weight: normal; margin-left: 3px; }
+  #reels { display: flex; gap: 3px; justify-content: center; margin: 6px 0; }
+  .reel {
+    width: 24px; height: 30px; line-height: 30px; border-radius: 6px;
+    background: #0d0805; color: #fff; font-size: .95rem; font-weight: bold;
+    border: 1px solid #6b5313; overflow: hidden;
+  }
+  .reel.spin { color: #999; filter: blur(.5px); }
+  .reel.reach { border-color: var(--red); box-shadow: 0 0 8px var(--red); color: var(--gold); }
+  .reel.hit { background: #3d1404; border-color: var(--gold); box-shadow: 0 0 12px var(--gold); color: var(--gold); animation: reelhit .4s steps(2) infinite; }
+  @keyframes reelhit { 50% { filter: brightness(1.8); } }
+  #holds { display: flex; gap: 2px; justify-content: center; min-height: 10px; flex-wrap: wrap; }
+  .hold-dot { width: 9px; height: 9px; border-radius: 50%; background: #ddd; box-shadow: 0 0 3px rgba(255,255,255,.5); }
+  .hold-dot.green { background: #7ade5e; box-shadow: 0 0 6px #7ade5e; }
+  .hold-dot.red { background: #ff3b30; box-shadow: 0 0 8px #ff3b30; animation: holdred .5s steps(2) infinite; }
+  @keyframes holdred { 50% { filter: brightness(1.9); } }
+  .pachi-note { font-size: .52rem; color: var(--muted); margin-top: 4px; }
   /* カットイン */
   #cutin {
     position: fixed; left: 50%; top: 38%; transform: translate(-50%,-50%) scale(0);
@@ -219,6 +244,8 @@
       <b style="color:var(--red)">4連鎖で大当たり!!</b> バジリスクタイム突入(20秒スコア2倍)<br>
       ⚪<b>米ぷよ</b>は定期的に降ってくる。隣で消して除去(+30)<br>
       🌈<b>虹しげる</b>は激アツ予告つきのワイルドカード<br>
+      ⚡<b>パチンコ「茂のお仕事」</b>: 消すと保留+1、1/99で総理就任<br>
+      赤保留は激アツ。リーチでスマホが震える(Android)<br>
       全消しで+3500点。BGMは3曲順繰り。積んだら誠に遺憾。<br>
       <span style="font-size:.74rem;color:var(--muted)">操作: 下のボタン / ←→↓・↑orX回転・Zで逆回転・スペースで落下<br>盤面スワイプ移動・タップ回転もOK</span>
     </div>
@@ -240,8 +267,15 @@
     <div id="side">
       <div class="next-box"><p>NEXT</p><div class="next-pair" id="next1"><img><img></div></div>
       <div class="next-box"><p>NEXT2</p><div class="next-pair" id="next2"><img><img></div></div>
-      <div class="stat-box"><p>最大連鎖</p><b id="maxchain-hud">0</b></div>
-      <div class="stat-box"><p>大当たり</p><b id="jack-hud">0</b></div>
+      <div class="stat-box stat-mini"><p>最大連鎖 <b id="maxchain-hud">0</b> / 当たり <b id="jack-hud">0</b></p></div>
+      <div id="pachi">
+        <p class="pachi-title">⚡茂のお仕事⚡<span>1/99</span></p>
+        <div id="reels">
+          <span class="reel">米</span><span class="reel">米</span><span class="reel">米</span>
+        </div>
+        <div id="holds"></div>
+        <p class="pachi-note">消すと保留+1</p>
+      </div>
     </div>
   </div>
   <div id="controls">
@@ -678,6 +712,7 @@ async function resolveChains() {
     chain++;
     maxChain = Math.max(maxChain, chain);
     document.getElementById("maxchain-hud").textContent = maxChain;
+    addHold(); // 消すたびパチンコの保留が1つ貯まる
     // 演出
     chainSE(chain);
     chainLabel = { n: chain, t0: performance.now() };
@@ -783,6 +818,116 @@ function endFeverIfNeeded() {
   fh.textContent = fev ? "🔥確変 " + Math.ceil((feverUntil - performance.now()) / 1000) : "";
 }
 
+/* ================================================================
+   パチンコ「茂のお仕事」: ぷよを消すと保留+1、1/99で大当たり
+   保留色(白<緑<赤)は信頼度。リーチ・カットイン・バイブつき
+================================================================ */
+const PACHI_ODDS = 1 / 99;
+const REEL_SYMS = ["総理", "国会", "答弁", "遺憾", "解散", "農政", "防衛", "米"];
+const HIT_SYM = "総理";
+let holds = [], spinning = false;
+
+function vibe(p) { try { if (navigator.vibrate) navigator.vibrate(p); } catch (e) {} }
+
+function renderHolds() {
+  const el = document.getElementById("holds");
+  el.innerHTML = "";
+  holds.forEach(h => {
+    const d = document.createElement("div");
+    d.className = "hold-dot " + h.color;
+    el.appendChild(d);
+  });
+}
+
+function addHold() {
+  if (holds.length >= 8) return;
+  const hit = Math.random() < PACHI_ODDS;
+  // 保留色は信頼度: 当たりなら緑/赤に寄る、ハズレはほぼ白
+  const r = Math.random();
+  const color = hit ? (r < .5 ? "red" : r < .9 ? "green" : "white")
+                    : (r < .02 ? "red" : r < .1 ? "green" : "white");
+  holds.push({ hit, color });
+  if (color === "red") { vibe(90); chainSE(5); }       // 赤保留は入った瞬間から脳汁
+  else if (color === "green") chainSE(2);
+  renderHolds();
+  pumpPachi();
+}
+
+function setReel(i, text, cls) {
+  const el = document.querySelectorAll(".reel")[i];
+  el.textContent = text;
+  el.className = "reel" + (cls ? " " + cls : "");
+}
+function randSym(exclude) {
+  let s;
+  do { s = REEL_SYMS[Math.floor(Math.random() * REEL_SYMS.length)]; } while (s === exclude);
+  return s;
+}
+
+async function pumpPachi() {
+  if (spinning || !holds.length || !running || phase === "over") return;
+  spinning = true;
+  const h = holds.shift();
+  renderHolds();
+  await spinReels(h);
+  spinning = false;
+  pumpPachi();
+}
+
+async function spinReels(h) {
+  const reach = h.hit || Math.random() < .12; // ハズレでも1割はリーチで煽る
+  // 最終出目
+  const final = h.hit ? [HIT_SYM, HIT_SYM, HIT_SYM]
+    : reach ? [HIT_SYM, HIT_SYM, randSym(HIT_SYM)]
+    : [randSym(), randSym(), null];
+  if (!h.hit && !reach) {
+    final[2] = final[0] === final[1] ? randSym(final[0]) : REEL_SYMS[Math.floor(Math.random() * REEL_SYMS.length)];
+    if (final[0] === final[1] && final[2] === final[0]) final[2] = randSym(final[0]);
+  }
+  // 回転開始
+  const timers = [];
+  for (let i = 0; i < 3; i++) {
+    setReel(i, REEL_SYMS[0], "spin");
+    timers[i] = setInterval(() => setReel(i, REEL_SYMS[Math.floor(Math.random() * REEL_SYMS.length)], "spin"), 55);
+  }
+  const stop = async (i, cls) => {
+    clearInterval(timers[i]);
+    setReel(i, final[i], cls);
+    moveSE();
+  };
+  await sleep(650);
+  await stop(0, reach ? "reach" : "");
+  await sleep(550);
+  await stop(1, reach ? "reach" : "");
+  if (reach) {
+    // リーチ演出: バイブ+煽りSE、高信頼ならカットイン
+    vibe([120, 60, 120]);
+    chainSE(4);
+    const cutChance = h.hit ? .75 : (h.color === "red" ? .5 : .2);
+    if (Math.random() < cutChance) {
+      await sleep(500);
+      showCutin(["mash", "wakai", "wakaiRed", "mukaejita", "henkao"][Math.floor(Math.random() * 5)]);
+      vibe(200);
+      playVoice(true);
+    }
+    await sleep(1800);
+  } else {
+    await sleep(500);
+  }
+  await stop(2, h.hit ? "hit" : reach ? "reach" : "");
+  if (h.hit) {
+    // 大当たり!! 茂、内閣総理大臣へ
+    document.querySelectorAll(".reel").forEach(el => el.classList.add("hit"));
+    vibe([100, 50, 100, 50, 400]);
+    triggerJackpot();
+    banner("茂、総理就任!!");
+    chainLabel = { n: "パチンコ大当たり!!", t0: performance.now() };
+    await sleep(1200);
+  }
+  await sleep(250);
+  document.querySelectorAll(".reel").forEach(el => el.className = "reel");
+}
+
 function shakeBoard() {
   const w = document.getElementById("board-wrap");
   w.classList.remove("shake");
@@ -809,13 +954,21 @@ const ctx2d = canvas.getContext("2d");
 let cellPx = 30;
 
 function resizeBoard() {
+  // 利用可能領域からきっちり6:12(枠の中で12段が底まで届く)のサイズを計算する
+  const main = document.getElementById("main-area");
+  const side = document.getElementById("side");
   const wrap = document.getElementById("board-wrap");
-  const r = wrap.getBoundingClientRect();
+  const mr = main.getBoundingClientRect();
+  const availW = Math.max(120, mr.width - side.getBoundingClientRect().width - 12);
+  const availH = Math.max(240, mr.height - 4);
+  const innerW = Math.floor(Math.min(availW - 4, (availH - 4) / 2)); // 枠線2px×2を除いた内寸
+  wrap.style.width = (innerW + 4) + "px";
+  wrap.style.height = (innerW * 2 + 4) + "px";
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  canvas.width = r.width * dpr;
-  canvas.height = r.height * dpr;
+  canvas.width = innerW * dpr;
+  canvas.height = innerW * 2 * dpr;
   ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
-  cellPx = r.width / COLS;
+  cellPx = innerW / COLS;
 }
 window.addEventListener("resize", () => { if (running) resizeBoard(); });
 
@@ -1065,6 +1218,7 @@ function resumeGame() {
   const b = activeBgm();
   if (b) b.play().catch(() => {});
   else playRotation();
+  pumpPachi();
 }
 function goHome() {
   paused = false;
@@ -1090,6 +1244,8 @@ document.getElementById("start-btn").addEventListener("click", () => {
   score = 0; maxChain = 0; jackpots = 0; cleared = 0; level = 1; pairsPlaced = 0;
   fallInterval = 780; fallAcc = 0; softDrop = false; feverUntil = 0;
   popping = []; chainLabel = null; paused = false; particles = []; feverActiveFlag = false;
+  holds = []; spinning = false; renderHolds();
+  document.querySelectorAll(".reel").forEach((el, i) => { el.className = "reel"; el.textContent = "米"; });
   document.getElementById("pause-overlay").classList.remove("show");
   document.getElementById("level-hud").textContent = "Lv.1";
   document.getElementById("maxchain-hud").textContent = "0";
