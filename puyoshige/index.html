@@ -168,6 +168,51 @@
   .hold-dot.green { background: radial-gradient(circle at 35% 30%, #d6ffc9, #7ade5e 55%, #2f7a1c); box-shadow: 0 0 7px #7ade5e; }
   .hold-dot.red { background: radial-gradient(circle at 35% 30%, #ffd6d0, #ff3b30 55%, #8a0f08); box-shadow: 0 0 9px #ff3b30; animation: holdred .45s steps(2) infinite; }
   @keyframes holdred { 50% { filter: brightness(1.9); } }
+  .hold-dot.rainbow { animation: holdrainbow .8s linear infinite; box-shadow: 0 0 12px #fff; }
+  @keyframes holdrainbow {
+    0% { background: #ff3b30; } 20% { background: #ffd166; } 40% { background: #7ade5e; }
+    60% { background: #4cc9f0; } 80% { background: #b98cff; } 100% { background: #ff3b30; }
+  }
+  /* 擬似連ポップ */
+  #giji {
+    position: absolute; left: 50%; top: 42%; transform: translateX(-50%) scale(0);
+    font-family: "Hiragino Mincho ProN", "Yu Mincho", serif; font-weight: 900; font-style: italic;
+    color: #fff; font-size: .95rem; white-space: nowrap; z-index: 3; opacity: 0;
+    text-shadow: 0 0 8px #e63946, 0 2px 0 #000; pointer-events: none;
+  }
+  #giji.show { animation: gijipop 1s ease-out forwards; }
+  @keyframes gijipop {
+    0% { transform: translateX(-50%) scale(0); opacity: 0; }
+    20% { transform: translateX(-50%) scale(1.3); opacity: 1; }
+    35% { transform: translateX(-50%) scale(1); }
+    80% { opacity: 1; }
+    100% { transform: translateX(-50%) scale(1.1); opacity: 0; }
+  }
+  /* PUSHボタン */
+  #push-btn {
+    position: fixed; left: 50%; bottom: 16%; transform: translateX(-50%) scale(0);
+    width: 110px; height: 110px; border-radius: 50%; border: none; z-index: 19;
+    background: radial-gradient(circle at 50% 35%, #ff6b6b, #b5121b 65%, #7a1220);
+    color: #fff; font-weight: 900; font-size: 1.3rem; font-family: inherit; font-style: italic;
+    box-shadow: 0 0 0 6px #ffd166, 0 0 30px 10px rgba(230,57,70,.7), 0 8px 0 #5a0c16;
+    cursor: pointer; display: none;
+  }
+  #push-btn.show { display: block; animation: pushpop .45s ease-out forwards, pushpulse .5s .45s ease-in-out infinite alternate; }
+  @keyframes pushpop { 0% { transform: translateX(-50%) scale(0); } 70% { transform: translateX(-50%) scale(1.15); } 100% { transform: translateX(-50%) scale(1); } }
+  @keyframes pushpulse { to { transform: translateX(-50%) scale(1.08); box-shadow: 0 0 0 9px #ffd166, 0 0 46px 16px rgba(255,209,102,.8), 0 8px 0 #5a0c16; } }
+  #push-btn:active { transform: translateX(-50%) scale(.94) !important; }
+  /* 群予告(米群) */
+  #mure { position: fixed; inset: 0; z-index: 17; pointer-events: none; display: none; }
+  #mure.show { display: block; }
+  #mure span {
+    position: absolute; left: 105vw;
+    animation: mure-cross 1.4s linear forwards;
+    filter: drop-shadow(0 2px 6px rgba(0,0,0,.6));
+  }
+  @keyframes mure-cross { to { transform: translateX(-135vw); } }
+  /* 復活演出の暗転 */
+  body.blackout #game-screen, body.blackout #cutin, body.blackout #reach-anim { filter: brightness(.12); }
+  body.blackout { transition: none; }
   .pachi-note { font-size: .52rem; color: var(--muted); margin-top: 4px; }
   /* ---- 盤面下: 茂くん国会お仕事アニメ ---- */
   #kokkai {
@@ -408,6 +453,7 @@
         <div id="reels">
           <span class="reel">米</span><span class="reel">米</span><span class="reel">米</span>
         </div>
+        <div id="giji"></div>
         <div id="holds"></div>
         <p class="pachi-note">消すと保留+1</p>
         <div id="kokkai">
@@ -441,6 +487,8 @@
   <div class="ra-vs">VS</div>
   <img class="ra-fighter ra-enemy" id="ra-enemy" alt="">
 </div>
+<button id="push-btn">PUSH!</button>
+<div id="mure"></div>
 <div id="jackpot"><span>大当たり!!</span></div>
 <div id="flash"></div>
 <div id="pause-overlay">
@@ -647,6 +695,39 @@ function jackpotSE() {
     });
   } catch (e) {}
 }
+// キュイン!(プレミア告知音)
+function kyuin() {
+  try {
+    const ctx = ensureCtx(), t = ctx.currentTime;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = "sine";
+    o.frequency.setValueAtTime(500, t);
+    o.frequency.exponentialRampToValueAtTime(2100, t + .28);
+    g.gain.setValueAtTime(.0001, t);
+    g.gain.exponentialRampToValueAtTime(.5, t + .05);
+    g.gain.exponentialRampToValueAtTime(.001, t + .75);
+    o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + .8);
+    const o2 = ctx.createOscillator(), g2 = ctx.createGain();
+    o2.type = "triangle"; o2.frequency.value = 2600;
+    g2.gain.setValueAtTime(0, t + .25);
+    g2.gain.linearRampToValueAtTime(.2, t + .3);
+    g2.gain.exponentialRampToValueAtTime(.001, t + .7);
+    o2.connect(g2).connect(ctx.destination); o2.start(t + .25); o2.stop(t + .75);
+  } catch (e) {}
+}
+// チリン(保留変化音)
+function chirin() {
+  try {
+    const ctx = ensureCtx(), t = ctx.currentTime;
+    [2093, 2637].forEach((f, i) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = "sine"; o.frequency.value = f;
+      g.gain.setValueAtTime(.16, t + i * .06);
+      g.gain.exponentialRampToValueAtTime(.001, t + i * .06 + .28);
+      o.connect(g).connect(ctx.destination); o.start(t + i * .06); o.stop(t + i * .06 + .3);
+    });
+  } catch (e) {}
+}
 let voiceBag = [], lastVoiceAt = 0;
 function playVoice(force) {
   if (!COMBO_VOICES.length) return;
@@ -673,6 +754,7 @@ function show(id) {
 /* ================================================================
    ゲーム状態
 ================================================================ */
+let fxPause = 0;            // フルスクリーン演出中はゲーム進行を止める
 let field = [];             // COLS*ROWS, 0=空, 1..4=種類
 let pair = null;            // {c, r, rot, a, b}
 let queue = [];             // 次の組
@@ -779,11 +861,11 @@ function convertRainbows() {
 }
 
 function tryMove(dc) {
-  if (phase !== "fall" || paused) return;
+  if (phase !== "fall" || paused || fxPause) return;
   if (fits(pair.c + dc, pair.r, pair.rot)) { pair.c += dc; moveSE(); }
 }
 function tryRotate(dir) {
-  if (phase !== "fall" || paused) return;
+  if (phase !== "fall" || paused || fxPause) return;
   const nr = (pair.rot + dir + 4) % 4;
   const kicks = [[0, 0], [-childOff(nr)[0], 0], [0, -Math.max(0, childOff(nr)[1])]];
   for (const [kc, kr] of kicks) {
@@ -798,7 +880,7 @@ function tryRotate(dir) {
   if (fits(pair.c, pair.r, flip)) { pair.rot = flip; moveSE(); }
 }
 function hardDrop() {
-  if (phase !== "fall" || paused) return;
+  if (phase !== "fall" || paused || fxPause) return;
   while (fits(pair.c, pair.r + 1, pair.rot)) pair.r++;
   if (Math.random() < .05) playVoice(); // たまに落下と同時にネタ音声
   lockPair();
@@ -996,7 +1078,15 @@ function endFeverIfNeeded() {
   }
   if (fev) feverActiveFlag = true;
   const fh = document.getElementById("fever-hud");
-  fh.textContent = fev ? "🔥確変 " + Math.ceil((feverUntil - performance.now()) / 1000) : "";
+  if (fev) {
+    // ラウンド消化風表示: 20秒を10ラウンドに割って出玉が増えていく
+    const elapsed = FEVER_SEC - (feverUntil - performance.now()) / 1000;
+    const round = Math.min(10, Math.floor(elapsed / (FEVER_SEC / 10)) + 1);
+    const balls = Math.floor(elapsed * 156);
+    fh.textContent = `🔥R${round} 出玉${balls}`;
+  } else {
+    fh.textContent = "";
+  }
 }
 
 /* ================================================================
@@ -1020,18 +1110,36 @@ function renderHolds() {
   });
 }
 
+const COLOR_RANK = ["white", "green", "red", "rainbow"];
 function addHold() {
   if (holds.length >= 8) return;
   const hit = Math.random() < PACHI_ODDS;
-  // 保留色は信頼度: 当たりなら緑/赤に寄る、ハズレはほぼ白
+  // 最終的に到達する保留色(信頼度): 当たりは赤・虹に寄る
   const r = Math.random();
-  const color = hit ? (r < .5 ? "red" : r < .9 ? "green" : "white")
-                    : (r < .02 ? "red" : r < .1 ? "green" : "white");
-  holds.push({ hit, color });
-  if (color === "red") { vibe(90); chainSE(5); }       // 赤保留は入った瞬間から脳汁
-  else if (color === "green") chainSE(2);
+  const target = hit ? (r < .3 ? "rainbow" : r < .75 ? "red" : r < .95 ? "green" : "white")
+                     : (r < .015 ? "red" : r < .08 ? "green" : "white");
+  // 入賞時は控えめな色で入り、後から「保留変化」で昇格していく(先読み)
+  const startIdx = Math.max(0, COLOR_RANK.indexOf(target) - (1 + (Math.random() < .5 ? 1 : 0)));
+  holds.push({ hit, color: COLOR_RANK[Math.min(startIdx, 1)], target });
   renderHolds();
   pumpPachi();
+}
+
+/* 先読み保留変化: 各変動開始時に待機保留が1段階ずつ昇格していく */
+function stepHoldUpgrades() {
+  let changed = false;
+  holds.forEach(h => {
+    const cur = COLOR_RANK.indexOf(h.color);
+    const tgt = COLOR_RANK.indexOf(h.target);
+    if (cur < tgt && Math.random() < .6) {
+      h.color = COLOR_RANK[cur + 1];
+      changed = true;
+      if (h.color === "rainbow") { kyuin(); vibe([80, 40, 200]); }  // 虹保留=プレミア
+      else if (h.color === "red") { chirin(); vibe(90); chainSE(5); }
+      else chirin();
+    }
+  });
+  if (changed) renderHolds();
 }
 
 function setReel(i, text, cls) {
@@ -1048,6 +1156,7 @@ function randSym(exclude) {
 /* リーチのフルスクリーン対決アニメ(黄門ちゃま・源さんリスペクト) */
 const REACH_TITLES = ["国益をかけた戦い!!", "解散総選挙リーチ!!", "誠に遺憾リーチ!!", "米騒動リーチ!!", "なめられてたまるかリーチ!!"];
 const REACH_ENEMIES = ["syamu", "chimp", "ryota", "googly", "hikakin"];
+let reachShowing = false;
 function showReachAnim(h) {
   const el = document.getElementById("reach-anim");
   document.getElementById("ra-title").textContent = REACH_TITLES[Math.floor(Math.random() * REACH_TITLES.length)];
@@ -1056,10 +1165,12 @@ function showReachAnim(h) {
   el.classList.remove("show");
   void el.offsetWidth;
   el.classList.add("show");
+  if (!reachShowing) { reachShowing = true; fxPause++; } // 演出中は盤面を止める
   shakeBoard();
 }
 function hideReachAnim() {
   document.getElementById("reach-anim").classList.remove("show");
+  if (reachShowing) { reachShowing = false; fxPause = Math.max(0, fxPause - 1); }
 }
 
 /* 国会アニメの吹き出しセリフを回す */
@@ -1079,10 +1190,64 @@ async function pumpPachi() {
   pumpPachi();
 }
 
+/* PUSHボタン: 押すか1.6秒で自動発展 */
+function waitPush() {
+  return new Promise(resolve => {
+    const btn = document.getElementById("push-btn");
+    btn.classList.add("show");
+    let done = false;
+    const finish = pressed => {
+      if (done) return;
+      done = true;
+      btn.classList.remove("show");
+      btn.onpointerdown = null;
+      if (pressed) { vibe(200); dropSE(); flashScreen(); }
+      resolve();
+    };
+    btn.onpointerdown = e => { e.preventDefault(); finish(true); };
+    setTimeout(() => finish(false), 1600);
+  });
+}
+function flashScreen() {
+  const f = document.getElementById("flash");
+  f.classList.add("on");
+  setTimeout(() => f.classList.remove("on"), 70);
+}
+/* 群予告: 米の大群が画面を横切る(激アツ) */
+function riceMure() {
+  const el = document.getElementById("mure");
+  el.innerHTML = "";
+  for (let i = 0; i < 26; i++) {
+    const s = document.createElement("span");
+    s.textContent = ["🍙", "🍚", "米"][Math.floor(Math.random() * 3)];
+    s.style.top = Math.random() * 90 + "%";
+    s.style.fontSize = (1 + Math.random() * 1.8) + "rem";
+    s.style.animationDelay = (Math.random() * .7) + "s";
+    s.style.animationDuration = (1.1 + Math.random() * .8) + "s";
+    el.appendChild(s);
+  }
+  el.classList.add("show");
+  chainSE(7);
+  vibe([60, 40, 60, 40, 60]);
+  setTimeout(() => { el.classList.remove("show"); el.innerHTML = ""; }, 2400);
+}
+/* 擬似連表示 */
+function gijiPop(n) {
+  const g = document.getElementById("giji");
+  g.textContent = "擬似連×" + n + "!!";
+  g.classList.remove("show");
+  void g.offsetWidth;
+  g.classList.add("show");
+  chainSE(2 + n);
+  vibe(70);
+}
+
 async function spinReels(h) {
   const panel = document.getElementById("pachi");
   panel.classList.add("spinning");
+  stepHoldUpgrades(); // 変動開始と同時に待機保留が先読み昇格
   const reach = h.hit || Math.random() < .12; // ハズレでも1割はリーチで煽る
+  const revive = h.hit && Math.random() < .18; // 当たりの2割は復活演出
   // 最終出目
   const final = h.hit ? [HIT_SYM, HIT_SYM, HIT_SYM]
     : reach ? [HIT_SYM, HIT_SYM, randSym(HIT_SYM)]
@@ -1091,36 +1256,72 @@ async function spinReels(h) {
     final[2] = final[0] === final[1] ? randSym(final[0]) : REEL_SYMS[Math.floor(Math.random() * REEL_SYMS.length)];
     if (final[0] === final[1] && final[2] === final[0]) final[2] = randSym(final[0]);
   }
-  // 回転開始
   const timers = [];
-  for (let i = 0; i < 3; i++) {
-    setReel(i, REEL_SYMS[0], "spin");
-    timers[i] = setInterval(() => setReel(i, REEL_SYMS[Math.floor(Math.random() * REEL_SYMS.length)], "spin"), 55);
-  }
-  const stop = async (i, cls) => {
+  const startSpin = () => {
+    for (let i = 0; i < 3; i++) {
+      setReel(i, REEL_SYMS[0], "spin");
+      timers[i] = setInterval(() => setReel(i, REEL_SYMS[Math.floor(Math.random() * REEL_SYMS.length)], "spin"), 55);
+    }
+  };
+  const stop = (i, cls) => {
     clearInterval(timers[i]);
     setReel(i, final[i], cls);
     moveSE();
   };
+  // 擬似連: 仮停止→再変動(当たりほど回数が多い=激アツ示唆)
+  const pseudo = h.hit ? 1 + Math.floor(Math.random() * 2) : (reach && Math.random() < .3 ? 1 : 0);
+  startSpin();
+  for (let p = 0; p < pseudo; p++) {
+    await sleep(750);
+    for (let i = 0; i < 3; i++) {
+      clearInterval(timers[i]);
+      setReel(i, randSym(), "");
+    }
+    moveSE();
+    await sleep(320);
+    gijiPop(p + 2);
+    await sleep(600);
+    startSpin();
+  }
   await sleep(650);
-  await stop(0, reach ? "reach" : "");
+  stop(0, reach ? "reach" : "");
   await sleep(550);
-  await stop(1, reach ? "reach" : "");
+  stop(1, reach ? "reach" : "");
   if (reach) {
-    // リーチ演出: フルスクリーン対決アニメ+バイブ+煽りSE+盤面点滅
+    // リーチ: 盤面点滅→PUSHボタン→対決アニメ(この間ぷよは停止)→群予告→カットイン
     panel.classList.add("reach-mode");
     vibe([120, 60, 120]);
     chainSE(4);
+    await waitPush();
     showReachAnim(h);
-    await sleep(1100);
-    const cutChance = h.hit ? .8 : (h.color === "red" ? .55 : .22);
+    await sleep(900);
+    if (h.hit ? Math.random() < .6 : (h.color === "red" || h.color === "rainbow") && Math.random() < .35) riceMure();
+    await sleep(700);
+    const cutChance = h.hit ? .8 : (h.color === "red" || h.color === "rainbow" ? .55 : .22);
     if (Math.random() < cutChance) showCutin();
     await sleep(1700);
     hideReachAnim();
   } else {
     await sleep(500);
   }
-  await stop(2, h.hit ? "hit" : reach ? "reach" : "");
+  if (revive) {
+    // 復活演出: 一度ハズレで止まる→暗転→キュイン→総理揃いに書き換え
+    stop(2, "reach");
+    setReel(2, randSym(HIT_SYM), "reach");
+    await sleep(900);
+    document.body.classList.add("blackout");
+    fxPause++;
+    await sleep(1100);
+    kyuin();
+    banner("まだ終わってないぞ");
+    await sleep(1000);
+    document.body.classList.remove("blackout");
+    fxPause = Math.max(0, fxPause - 1);
+    setReel(2, HIT_SYM, "hit");
+    flashScreen();
+  } else {
+    stop(2, h.hit ? "hit" : reach ? "reach" : "");
+  }
   if (h.hit) {
     // 大当たり!! 茂、内閣総理大臣へ(YouTubeテーマ+細身ダンス演出)
     document.querySelectorAll(".reel").forEach(el => el.classList.add("hit"));
@@ -1365,7 +1566,7 @@ function loop(ts) {
   if (!running) return;
   const dt = Math.min(50, ts - lastTs);
   lastTs = ts;
-  if (!paused && phase === "fall" && pair) {
+  if (!paused && !fxPause && phase === "fall" && pair) {
     fallAcc += dt * (softDrop ? 9 : 1);
     while (fallAcc >= fallInterval) {
       fallAcc -= fallInterval;
@@ -1457,7 +1658,10 @@ function goHome() {
   stopBgm();
   hidePachiMv();
   hideReachAnim();
-  document.body.classList.remove("fever");
+  fxPause = 0;
+  document.body.classList.remove("fever", "blackout");
+  document.getElementById("push-btn").classList.remove("show");
+  document.getElementById("mure").classList.remove("show");
   show("title-screen");
 }
 document.getElementById("pause-btn").addEventListener("click", pauseGame);
@@ -1476,6 +1680,8 @@ document.getElementById("start-btn").addEventListener("click", () => {
   fallInterval = 780; fallAcc = 0; softDrop = false; feverUntil = 0;
   popping = []; chainLabel = null; paused = false; particles = []; feverActiveFlag = false;
   holds = []; spinning = false; renderHolds();
+  fxPause = 0; reachShowing = false;
+  document.body.classList.remove("blackout");
   document.querySelectorAll(".reel").forEach((el, i) => { el.className = "reel"; el.textContent = "米"; });
   document.getElementById("pause-overlay").classList.remove("show");
   document.getElementById("level-hud").textContent = "Lv.1";
@@ -1508,7 +1714,10 @@ function gameOver() {
   stopBgm();
   hidePachiMv();
   hideReachAnim();
-  document.body.classList.remove("fever");
+  fxPause = 0;
+  document.body.classList.remove("fever", "blackout");
+  document.getElementById("push-btn").classList.remove("show");
+  document.getElementById("mure").classList.remove("show");
   const r = RANKS.find(x => x.cond());
   document.getElementById("result-rank").textContent = r.rank;
   document.getElementById("result-quote").textContent = r.quote;
