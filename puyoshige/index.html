@@ -253,6 +253,22 @@
     72% { transform: scale(1) translateY(0); }
     100% { transform: scale(1.05); }
   }
+  /* 検討ルーレット(何段消すか) */
+  #kishida-roulette {
+    position: absolute; left: 50%; top: 42%; transform: translate(-50%,-50%);
+    z-index: 3; display: none;
+    font-family: "Hiragino Mincho ProN", "Yu Mincho", serif; font-weight: 900;
+    font-size: clamp(5rem, 30vw, 10rem); line-height: 1;
+    background: linear-gradient(180deg, #fff8d0, #ffd166 45%, #b8860b 72%, #ffe9a0);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 0 6px #7a0a0a) drop-shadow(0 0 16px #e63946) drop-shadow(0 5px 3px #000);
+  }
+  #kishida-roulette.lock { animation: roulock .5s ease-out; }
+  @keyframes roulock {
+    0% { transform: translate(-50%,-50%) scale(2.2); filter: brightness(3) drop-shadow(0 0 20px #fff); }
+    60% { transform: translate(-50%,-50%) scale(.92); }
+    100% { transform: translate(-50%,-50%) scale(1); }
+  }
   #kishida-text {
     font-family: "Hiragino Mincho ProN", "Yu Mincho", serif; font-weight: 900; font-style: italic;
     font-size: clamp(1.2rem, 6vw, 2rem); white-space: nowrap;
@@ -374,11 +390,12 @@
     82% { transform: translateX(-50%) scale(1.04); opacity: 1; }
     100% { transform: translateX(-50%) scale(1.3); opacity: 0; }
   }
-  /* パチンコ大当たり中の細身ダンス */
+  /* パチンコ大当たり中の細身ダンス(盤面を塞がないよう右端に小さく半透明) */
   #pachimv {
-    position: fixed; left: 50%; top: 40%; transform: translate(-50%,-50%);
-    width: min(58vw, 300px); border-radius: 14px; z-index: 12; display: none;
-    box-shadow: 0 0 0 4px var(--gold), 0 0 50px 14px rgba(255,209,102,.5);
+    position: fixed; right: 6px; bottom: 21%;
+    width: min(31vw, 150px); border-radius: 12px; z-index: 12; display: none;
+    opacity: .82; pointer-events: none;
+    box-shadow: 0 0 0 3px var(--gold), 0 0 22px 8px rgba(255,209,102,.45);
   }
   @keyframes cutin {
     0% { transform: translate(-50%,-50%) scale(0) rotate(-18deg); opacity: 0; }
@@ -542,6 +559,7 @@
   <div id="kishida-rays"></div>
   <div id="kishida-halo"></div>
   <img id="kishida-card" alt="検討師-岸田文雄">
+  <div id="kishida-roulette"></div>
   <div id="kishida-text">魔法カード発動!!</div>
 </div>
 <div id="jackpot"><span>大当たり!!</span></div>
@@ -740,20 +758,65 @@ function dropSE() {
     o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + .11);
   } catch (e) {}
 }
-// 大当たりファンファーレ
+// 大当たりファンファーレ(脳汁全開版: サブベース→上昇アルペジオ→3連和音スタブ+シマー)
 function jackpotSE() {
   try {
     const ctx = ensureCtx(), t0 = ctx.currentTime;
-    const notes = [523, 659, 784, 1047, 784, 1047, 1319, 1568];
-    notes.forEach((f, i) => {
-      const o = ctx.createOscillator(), g = ctx.createGain();
-      o.type = "sawtooth"; o.frequency.value = f;
-      const t = t0 + i * .09;
-      g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(.22, t + .02);
-      g.gain.exponentialRampToValueAtTime(.001, t + .35);
-      o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + .36);
+    // ズンッ(サブベース)
+    const kick = ctx.createOscillator(), kg = ctx.createGain();
+    kick.type = "sine";
+    kick.frequency.setValueAtTime(150, t0);
+    kick.frequency.exponentialRampToValueAtTime(38, t0 + .22);
+    kg.gain.setValueAtTime(.8, t0);
+    kg.gain.exponentialRampToValueAtTime(.001, t0 + .3);
+    kick.connect(kg).connect(ctx.destination); kick.start(t0); kick.stop(t0 + .32);
+    // 上昇アルペジオ(saw+square二重、加速)
+    const run = [523, 587, 659, 784, 880, 1047, 1175, 1319, 1568, 1760, 2093];
+    let tt = t0 + .12;
+    run.forEach((f, i) => {
+      ["sawtooth", "square"].forEach((w, k) => {
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = w; o.frequency.value = f * (k ? 1.003 : 1);
+        g.gain.setValueAtTime(0, tt);
+        g.gain.linearRampToValueAtTime(k ? .1 : .2, tt + .015);
+        g.gain.exponentialRampToValueAtTime(.001, tt + .26);
+        o.connect(g).connect(ctx.destination); o.start(tt); o.stop(tt + .27);
+      });
+      tt += .085 - i * .003;
     });
+    // 3連メジャー和音スタブ(C6コード)+最後はロング
+    [0, .19, .38].forEach((d, n) => {
+      [1047, 1319, 1568, 2093].forEach(f => {
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = "sawtooth"; o.frequency.value = f;
+        const t = tt + .05 + d;
+        const dur = n === 2 ? 1.0 : .16;
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(.16, t + .015);
+        g.gain.exponentialRampToValueAtTime(.001, t + dur);
+        o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + dur + .02);
+      });
+      // 和音と同時に低音も打つ
+      const b = ctx.createOscillator(), bg = ctx.createGain();
+      b.type = "sine"; b.frequency.value = 65.4;
+      const t = tt + .05 + d;
+      bg.gain.setValueAtTime(.55, t);
+      bg.gain.exponentialRampToValueAtTime(.001, t + .22);
+      b.connect(bg).connect(ctx.destination); b.start(t); b.stop(t + .24);
+    });
+    // シマー(ノイズ上昇スイープ)
+    const len = ctx.sampleRate * 1.2, nb = ctx.createBuffer(1, len, ctx.sampleRate);
+    const nd = nb.getChannelData(0);
+    for (let i = 0; i < len; i++) nd[i] = (Math.random() * 2 - 1) * (i / len);
+    const ns = ctx.createBufferSource(); ns.buffer = nb;
+    const nf = ctx.createBiquadFilter(); nf.type = "bandpass"; nf.Q.value = 2;
+    nf.frequency.setValueAtTime(1200, t0 + .2);
+    nf.frequency.exponentialRampToValueAtTime(9000, t0 + 1.3);
+    const ng = ctx.createGain(); ng.gain.value = .16;
+    ns.connect(nf).connect(ng).connect(ctx.destination); ns.start(t0 + .2);
+    // 多重キュイン
+    kyuin();
+    setTimeout(kyuin, 350);
   } catch (e) {}
 }
 // キュイン!(プレミア告知音)
@@ -1118,13 +1181,30 @@ async function kishidaSave() {
   vibe([100, 60, 100, 60, 300, 100, 500]);
   await sleep(1900);
   tx.textContent = "あらゆる選択肢を排除せず検討中…";
-  await sleep(1400);
-  tx.textContent = "早急かつ慎重な検討の結果、下3段を消去!!";
+  await sleep(1200);
+  // 検討ルーレット: 何段消すかは完全ランダム(4〜7段・確率均等)
+  const wipeRows = 4 + Math.floor(Math.random() * 4);
+  const rl = document.getElementById("kishida-roulette");
+  tx.textContent = "検討の結果は…!?";
+  rl.style.display = "block";
+  rl.classList.remove("lock");
+  for (let i = 0; i < 14; i++) {
+    rl.textContent = 4 + (i % 4);
+    moveSE();
+    await sleep(60 + i * i * 2.2); // だんだん減速
+  }
+  rl.textContent = wipeRows;
+  rl.classList.add("lock");
+  kyuin();
+  flashScreen();
+  vibe([120, 60, 300]);
+  await sleep(900);
+  tx.textContent = `早急かつ慎重な検討の結果、下${wipeRows}段を消去!!`;
   flashScreen();
   jackpotSE();
-  // 下3段を消し飛ばす(米も含む)+ボーナス
+  // 抽選された段数を消し飛ばす(米も含む)+ボーナス
   let wiped = 0;
-  for (let r = ROWS - 3; r < ROWS; r++) {
+  for (let r = ROWS - wipeRows; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
       if (field[idx(c, r)]) {
         spawnParticles(c, r, "#4cc9f0");
@@ -1139,6 +1219,8 @@ async function kishidaSave() {
   convertRainbows();
   shakeBoard();
   await sleep(1200);
+  rl.style.display = "none";
+  rl.classList.remove("lock");
   fx.classList.remove("show");
   fxPause = Math.max(0, fxPause - 1);
   chainLabel = { n: "岸田による救済", t0: performance.now() };
@@ -1163,9 +1245,10 @@ function triggerJackpot(source) {
   jackpotSE();
   setTimeout(() => playAudio(SFX_NAME, .9), 700);
   banner("大当たり!!");
-  const f = document.getElementById("flash");
-  f.classList.add("on");
-  setTimeout(() => f.classList.remove("on"), 80);
+  // 3連フラッシュで脳を焼く
+  flashScreen();
+  setTimeout(flashScreen, 220);
+  setTimeout(flashScreen, 440);
   document.body.classList.add("fever");
   if (source === "pachi") {
     // パチンコ当たりはYouTubeテーマ+細身ダンス
