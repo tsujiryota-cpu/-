@@ -134,10 +134,14 @@
     position: absolute; left: 50%; top: 26%; transform: translateX(-50%);
     font-weight: bold; font-size: 1rem; pointer-events: none; opacity: 0;
     white-space: nowrap; text-shadow: 0 2px 6px rgba(0,0,0,.7);
-    transition: transform .5s ease-out, opacity .5s;
     z-index: 3;
   }
-  .hole-pop.show { opacity: 1; transform: translateX(-50%) translateY(-24px); }
+  .hole-pop.show { animation: popfade .9s ease-out forwards; }
+  @keyframes popfade {
+    0%   { opacity: 1; transform: translateX(-50%) translateY(0); }
+    60%  { opacity: 1; }
+    100% { opacity: 0; transform: translateX(-50%) translateY(-30px); }
+  }
   #flash {
     position: fixed; inset: 0; background: rgba(230,57,70,.35); opacity: 0;
     pointer-events: none; transition: opacity .35s; z-index: 20;
@@ -482,7 +486,8 @@ function spawn() {
     const type = pickType();
     hole.type = type;
     hole.whacked = false;
-    hole.img.src = IMG[type.imgs[Math.floor(Math.random() * type.imgs.length)]];
+    hole.imgKey = type.imgs[Math.floor(Math.random() * type.imgs.length)];
+    hole.img.src = IMG[hole.imgKey];
     hole.up = true;
     hole.el.classList.add("up");
     const stay = (fever ? d.stay * .75 : d.stay) * (.85 + Math.random() * .3);
@@ -519,11 +524,12 @@ function whack(hole) {
   const type = hole.type;
   thump();
   if (type.kind === "syamu") {
-    // 貝塚勃起土竜(syamu)を殴ってしまった — オフ会0人
+    // 貝塚勃起土竜(syamu)一味を殴ってしまった — オフ会0人
     score = Math.max(0, score + type.score);
     combo = 0;
     bads++;
-    popText(hole, "syamu!! 誠に遺憾", "#4cc9f0");
+    const isYaju = /^yaju/.test(hole.imgKey || "");
+    popText(hole, isYaju ? "ピンキリですね" : "syamu!! 誠に遺憾", "#4cc9f0");
     const f = document.getElementById("flash");
     f.classList.add("on");
     setTimeout(() => f.classList.remove("on"), 60);
