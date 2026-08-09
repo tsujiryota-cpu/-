@@ -635,6 +635,7 @@ let dmgDealt = 0, killCount = 0;
 let stage = 0;            // 勝ち抜きロードの現在ステージ
 let runDeck = [];         // 今回のラン用デッキ(報酬で増える)
 let carryLp = 4000;       // ステージ間で持ち越すLP
+let duelSeq = 0;          // デュエル世代番号(古い非同期処理の暴走防止)
 
 /* ---- 通算戦績(端末に保存) ---- */
 function loadStats() {
@@ -831,7 +832,8 @@ async function heal(side, n) {
   side.lp = Math.min(9999, side.lp + n);
   await animateLp(side, from, side.lp);
 }
-async function destroyMonster(side, zi) {
+/* credit=true のときだけ「プレイヤーの撃破」として数える(生贄・自壊は数えない) */
+async function destroyMonster(side, zi, credit) {
   const elId = side === P ? "player-field" : "cpu-field";
   const zone = $(elId).children[zi];
   const cardDiv = zone.firstChild;
@@ -839,7 +841,7 @@ async function destroyMonster(side, zi) {
     cardDiv.classList.add("dying");
     await sleep(420);
   }
-  if (side === C && side.field[zi]) killCount++;
+  if (credit && side === C && side.field[zi]) killCount++;
   side.field[zi] = null;
   renderAll();
 }
@@ -853,17 +855,17 @@ async function battle(attSide, ai, defSide, di) {
   flashScreen();
   if (A.atk > D.atk) {
     const dmg = A.atk - D.atk;
-    await destroyMonster(defSide, di);
+    await destroyMonster(defSide, di, attSide === P);
     if (attSide === P) dmgDealt += dmg;
     await damage(defSide, dmg);
   } else if (A.atk < D.atk) {
     const dmg = D.atk - A.atk;
-    await destroyMonster(attSide, ai);
+    await destroyMonster(attSide, ai, attSide === C);
     await damage(attSide, dmg);
     log("返り討ちにあった!");
   } else {
-    await destroyMonster(attSide, ai);
-    await destroyMonster(defSide, di);
+    await destroyMonster(attSide, ai, attSide === C);
+    await destroyMonster(defSide, di, attSide === P);
     log("相打ち!!");
   }
   renderAll();
@@ -961,7 +963,7 @@ async function castMagic(side, handIdx) {
     shake(); flashScreen();
     playAudio(SFX_NAME, .95);
     await cutin("illust", "解散総選挙!!");
-    for (let i = 0; i < 3; i++) { await destroyMonster(P, i); await destroyMonster(C, i); }
+    for (let i = 0; i < 3; i++) { await destroyMonster(P, i, false); await destroyMonster(C, i, side === P); }
     log("解散!! 全モンスター破壊!!");
   } else if (c.effect === "draw2") {
     draw(side, 2);
@@ -1007,7 +1009,7 @@ async function castMagic(side, handIdx) {
         log(`「${CARDS[key2].name}」がカードを落として手札に戻った!`);
         renderAll();
       } else {
-        await destroyMonster(foe, zi);
+        await destroyMonster(foe, zi, side === P);
         log(`「${CARDS[key2].name}」を落として紛失!!(手札満杯のため破壊)`);
       }
     } else log("落とすカードがなかった…");
@@ -1047,8 +1049,7 @@ async function castMagic(side, handIdx) {
     if (idxs.length) {
       const zi = idxs[Math.floor(Math.random() * idxs.length)];
       const name2 = CARDS[foe.field[zi].key].name;
-      if (side === P) killCount++;
-      await destroyMonster(foe, zi);
+      await destroyMonster(foe, zi, side === P);
       log(`デデドン!(絶望) 「${name2}」を破壊! だが絶望の余波が…`);
     } else log("デデドン!(絶望) …破壊対象がいないが絶望の余波だけ来た");
     await sleep(400);
@@ -1077,7 +1078,7 @@ async function kentouRoulette(side) {
         const foe = side === P ? C : P;
         let best = -1;
         foe.field.forEach((m, i) => { if (m && (best < 0 || m.atk > foe.field[best].atk)) best = i; });
-        if (best >= 0) { fx.classList.remove("show"); await destroyMonster(foe, best); fx.classList.add("show"); }
+        if (best >= 0) { fx.classList.remove("show"); await destroyMonster(foe, best, side === P); fx.classList.add("show"); }
       } },
     { t: "「検討を継続します」(何も起こらない)", f: async () => {} }
   ];
@@ -1207,23 +1208,38 @@ $("end-btn").onpointerdown = e => { e.preventDefault(); if (turnOwner === "playe
    CPU ターン
 ================================================================ */
 async function cpuTurn() {
+  const seq = duelSeq; // ステージが切り替わったら古いCPUターンは即死させる
+  const dead = () => over || seq !== duelSeq;
+  const waitUnpause = async () => { while (paused && !dead()) await sleep(200); };
   turnOwner = "cpu";
   selected = -1;
   turnCount++;
   renderAll();
   await sleep(650);
+  await waitUnpause();
+  if (dead()) return;
   draw(C, 1);
   C.summoned = false; C.magicked = false;
   renderAll();
   await sleep(450);
+  await waitUnpause();
+  if (dead()) return;
 
-  // 魔法: 無関係な話は手札が薄いとき使う
-  const mi = C.hand.findIndex(k => CARDS[k].type === "s");
-  if (mi >= 0 && C.hand.length <= 4 && !C.magicked) {
+  // 魔法: 状況的に意味のあるものだけ使う
+  const useful = k => {
+    const c = CARDS[k];
+    if (c.type !== "s") return false;
+    if (c.effect === "suiso") return P.field.some(m => m);
+    if (c.effect === "todai") return P.hand.length > 0;
+    if (c.effect === "draw2") return C.hand.length <= 4;
+    return true;
+  };
+  const mi = C.hand.findIndex(useful);
+  if (mi >= 0 && !C.magicked && (C.hand.length <= 4 || CARDS[C.hand[mi]].effect !== "draw2")) {
     busy = true; await castMagic(C, mi); busy = false;
     await sleep(300);
   }
-  if (over) return;
+  if (dead()) return;
 
   // 召喚: 出せる中で最強を(生贄は損しないときだけ)
   if (!C.summoned) {
@@ -1243,11 +1259,12 @@ async function cpuTurn() {
     });
     if (bestIdx >= 0) { busy = true; await summon(C, bestIdx); busy = false; await sleep(320); }
   }
-  if (over) return;
+  if (dead()) return;
 
   // 攻撃: 各モンスター、倒せる敵がいれば倒す/いなければ直接 or 自殺しない
   for (let i = 0; i < 3; i++) {
-    if (over) return;
+    if (dead()) return;
+    await waitUnpause();
     const m = C.field[i];
     if (!m || m.attacked) continue;
     const targets = P.field.map((mm, j) => mm ? { j, atk: mm.atk } : null).filter(Boolean);
@@ -1266,8 +1283,10 @@ async function cpuTurn() {
     }
     await sleep(280);
   }
-  if (over) return;
+  if (dead()) return;
   await sleep(500);
+  await waitUnpause();
+  if (dead()) return;
 
   // プレイヤーターンへ
   turnOwner = "player";
@@ -1291,6 +1310,7 @@ function startRun() {
 }
 
 async function startStage(n) {
+  duelSeq++; // 前のデュエルの残存処理を無効化
   stage = n;
   const st = STAGES[n];
   P = newSide(runDeck);
