@@ -660,7 +660,9 @@ const RAINBOW = 6;  // 虹しげる(どの色にもなれるワイルド)
 const RAINBOW_RATE = .06;
 const OJAMA_EVERY = 7; // この手数ごとに米が降る
 const CHAIN_POWER = [0, 8, 16, 32, 64, 96, 128, 160, 192, 224, 256, 288, 320];
-const FEVER_SEC = 20;
+const FEVER_SEC = 20;        // 連鎖大当たりの確変時間
+const PACHI_FEVER_SEC = 60;  // パチンコ大当たりの当たり時間
+const KAKUHEN_ODDS = 1 / 12; // 当たり中は確変モード: 実確率1/12で連チャンする
 const JACKPOT_CHAIN = 4; // この連鎖数で大当たり
 
 /* ================================================================
@@ -935,6 +937,7 @@ let running = false, paused = false;
 let score = 0, maxChain = 0, jackpots = 0, cleared = 0, level = 1, pairsPlaced = 0;
 let fallInterval = 780, fallAcc = 0, softDrop = false;
 let feverUntil = 0;         // performance.now()ベース
+let feverLen = FEVER_SEC;   // 進行中の当たりの長さ(パチンコ当たりは60秒)
 let popping = [];           // [{c,r,kind,t0}]
 let chainLabel = null;      // {n, t0}
 let lastTs = 0;
@@ -1288,8 +1291,10 @@ function banner(text) {
 function triggerJackpot(source) {
   jackpots++;
   document.getElementById("jack-hud").textContent = jackpots;
-  feverUntil = performance.now() + FEVER_SEC * 1000;
+  feverLen = source === "pachi" ? PACHI_FEVER_SEC : FEVER_SEC;
+  feverUntil = performance.now() + feverLen * 1000;
   feverActiveFlag = true;
+  document.querySelector(".pachi-title span").textContent = " ⚡確変中1/12";
   jackpotSE();
   setTimeout(() => playAudio(SFX_NAME, .9), 700);
   banner("大当たり!!");
@@ -1324,17 +1329,18 @@ function endFeverIfNeeded() {
   if (feverActiveFlag && !fev) {
     feverActiveFlag = false;
     document.body.classList.remove("fever");
+    document.querySelector(".pachi-title span").textContent = " ミドル1/299";
     hidePachiMv();
     endFeverBgm();
   }
   if (fev) feverActiveFlag = true;
   const fh = document.getElementById("fever-hud");
   if (fev) {
-    // ラウンド消化風表示: 20秒を10ラウンドに割って出玉が増えていく
-    const elapsed = FEVER_SEC - (feverUntil - performance.now()) / 1000;
-    const round = Math.min(10, Math.floor(elapsed / (FEVER_SEC / 10)) + 1);
+    // ラウンド消化風表示: 当たり時間を10ラウンドに割って出玉が増えていく
+    const elapsed = feverLen - (feverUntil - performance.now()) / 1000;
+    const round = Math.min(10, Math.floor(elapsed / (feverLen / 10)) + 1);
     const balls = Math.floor(elapsed * 156);
-    fh.textContent = `🔥R${round} 出玉${balls}`;
+    fh.textContent = `🔥R${round} 出玉${balls} ⚡1/12`;
   } else {
     fh.textContent = "";
   }
@@ -1364,7 +1370,7 @@ function renderHolds() {
 const COLOR_RANK = ["white", "green", "red", "rainbow"];
 function addHold() {
   if (holds.length >= 8) return;
-  const hit = Math.random() < PACHI_ODDS;
+  const hit = Math.random() < (isFever() ? KAKUHEN_ODDS : PACHI_ODDS); // 当たり中は確変1/12
   // 最終的に到達する保留色(信頼度): 当たりは赤・虹に寄る
   const r = Math.random();
   const target = hit ? (r < .3 ? "rainbow" : r < .75 ? "red" : r < .95 ? "green" : "white")
@@ -1943,6 +1949,7 @@ document.getElementById("start-btn").addEventListener("click", () => {
   document.getElementById("maxchain-hud").textContent = "0";
   document.getElementById("jack-hud").textContent = "0";
   document.body.classList.remove("fever");
+  document.querySelector(".pachi-title span").textContent = " ミドル1/299";
   updateHud();
   show("game-screen");
   resizeBoard();
