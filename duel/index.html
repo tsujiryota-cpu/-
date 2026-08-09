@@ -9,6 +9,7 @@
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { height: 100%; overflow: hidden; }
+  html { background: #0a0618; }
   body {
     font-family: "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
     background: radial-gradient(ellipse at 50% 30%, #1a1035 0%, #0a0618 70%);
@@ -103,7 +104,7 @@
 
   /* ---------------- 中央帯 ---------------- */
   #mid-row { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 2px 4px; }
-  #log { flex: 1; font-size: .72rem; color: #e8def7; min-height: 2.4em; display: flex; align-items: center; }
+  #log { flex: 1; min-width: 0; font-size: .72rem; color: #e8def7; min-height: 2.4em; max-height: 3em; overflow: hidden; display: flex; align-items: center; }
   #turn-badge { font-size: .68rem; font-weight: 800; padding: 3px 10px; border-radius: 12px; background: #d4a017; color: #3a2800; white-space: nowrap; }
   #turn-badge.enemy { background: #c2185b; color: #fff; }
   .act-btn {
@@ -136,7 +137,7 @@
   #cutin.show { display: flex; animation: cutinslide 1s ease-out; }
   @keyframes cutinslide { 0% { transform: skewY(-4deg) translateX(110%); } 18% { transform: skewY(-4deg) translateX(0); } 82% { transform: skewY(-4deg) translateX(0); } 100% { transform: skewY(-4deg) translateX(-115%); } }
   #cutin img { height: 82%; aspect-ratio: 1; object-fit: cover; border-radius: 10px; border: 3px solid #ffd75e; }
-  #cutin .ctext { font-size: clamp(1.1rem, 5.6vw, 1.9rem); font-weight: 900; text-shadow: 0 0 12px #ff2a2a, 0 3px 5px #000; font-style: italic; }
+  #cutin .ctext { flex: 1; min-width: 0; font-size: clamp(1rem, 5vw, 1.7rem); font-weight: 900; text-shadow: 0 0 12px #ff2a2a, 0 3px 5px #000; font-style: italic; }
 
   #dmg-pop {
     position: fixed; left: 50%; top: 42%; transform: translateX(-50%); z-index: 75; pointer-events: none;
@@ -173,10 +174,11 @@
   }
   @keyframes rays { to { transform: rotate(360deg); } }
   #kentou-fx img { width: min(46vw, 210px); border-radius: 10px; box-shadow: 0 0 46px #ffe98a; animation: cardfloat 2.5s ease-in-out infinite; z-index: 2; }
-  #kentou-roulette { font-size: clamp(1.2rem, 6vw, 1.8rem); font-weight: 900; color: #ffe98a; text-shadow: 0 0 14px #d4a017; z-index: 2; min-height: 1.6em; }
+  #kentou-roulette { font-size: clamp(1.1rem, 5.4vw, 1.7rem); font-weight: 900; color: #ffe98a; text-shadow: 0 0 14px #d4a017; z-index: 2; min-height: 1.6em; max-width: 94vw; text-align: center; }
   #kentou-title { font-size: 1rem; color: #cabfe6; z-index: 2; }
 
   /* バジリスクタイム */
+  #basi-banner { font-size: clamp(1.4rem, 7.6vw, 2.5rem) !important; }
   body.basilisk::after {
     content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 30;
     box-shadow: inset 0 0 90px rgba(255,20,20,.55);
@@ -205,13 +207,14 @@
   #reward-fx.show { display: flex; }
   #reward-fx h2 { color: #ffd75e; text-shadow: 0 0 14px #d4a017; font-size: 1.4rem; }
   #reward-fx p { color: #cabfe6; font-size: .85rem; }
-  #reward-cards { display: flex; gap: 10px; justify-content: center; padding: 8px; }
-  #reward-cards .card { width: 27vw; max-width: 130px; cursor: pointer; animation: summonin .5s ease-out; }
+  #reward-cards { display: flex; gap: 8px; justify-content: center; padding: 8px; max-width: 100vw; }
+  #reward-cards .card { width: 26vw; max-width: 120px; cursor: pointer; animation: summonin .5s ease-out; }
   #reward-cards .card:active { transform: scale(.94); }
 
   /* ---------------- リザルト ---------------- */
   #result-screen { gap: 12px; text-align: center; padding: 18px; }
-  #result-word { font-size: clamp(3rem, 16vw, 5rem); font-weight: 900; font-style: italic; }
+  #result-screen > div { max-width: 100%; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; }
+  #result-word { font-size: clamp(2.1rem, 12.5vw, 3.6rem); font-weight: 900; font-style: italic; max-width: 100%; }
   #result-word.win { color: #ffd75e; text-shadow: 0 0 26px #ff9a3c; }
   #result-word.lose { color: #7f8ca8; text-shadow: 0 0 14px #223; }
   #result-face { width: min(38vw, 170px); aspect-ratio: 1; object-fit: cover; border-radius: 50%; border: 4px solid #d4a017; }
