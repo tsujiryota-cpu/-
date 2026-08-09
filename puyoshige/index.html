@@ -962,8 +962,9 @@ function updateNextView() {
     const el = document.getElementById("next" + n);
     const p = queue[n - 1];
     const imgs = el.querySelectorAll("img");
-    // 上=子ぷよ, 下=軸ぷよ
-    const b = nextImgFor(p.b), a = nextImgFor(p.a);
+    // 上=子ぷよ, 下=軸ぷよ(当たり期間中は全部ワイルドが降るのでNEXTも虹表示)
+    const wild = isFever();
+    const b = nextImgFor(wild ? RAINBOW : p.b), a = nextImgFor(wild ? RAINBOW : p.a);
     imgs[0].src = b.src; imgs[0].style.borderColor = b.rim;
     imgs[1].src = a.src; imgs[1].style.borderColor = a.rim;
   });
@@ -980,7 +981,9 @@ function spawnPair() {
   const p = queue.shift();
   refillQueue();
   updateNextView();
-  pair = { c: 2, r: 1, rot: 0, a: p.a, b: p.b };
+  // 当たり期間(確変中)は全部ワイルド(虹しげる)が落ちてくる
+  const wild = isFever();
+  pair = { c: 2, r: 1, rot: 0, a: wild ? RAINBOW : p.a, b: wild ? RAINBOW : p.b };
   fallAcc = 0;
   if (p.hot) { // 激アツ予告
     banner("チャンス!!");
@@ -1295,6 +1298,7 @@ function triggerJackpot(source) {
   feverUntil = performance.now() + feverLen * 1000;
   feverActiveFlag = true;
   document.querySelector(".pachi-title span").textContent = " ⚡確変中1/12";
+  if (queue.length) updateNextView(); // NEXTも即ワイルド表示に
   jackpotSE();
   setTimeout(() => playAudio(SFX_NAME, .9), 700);
   banner("大当たり!!");
@@ -1330,6 +1334,7 @@ function endFeverIfNeeded() {
     feverActiveFlag = false;
     document.body.classList.remove("fever");
     document.querySelector(".pachi-title span").textContent = " ミドル1/299";
+    if (queue.length) updateNextView(); // NEXTを通常色表示に戻す
     hidePachiMv();
     endFeverBgm();
   }
