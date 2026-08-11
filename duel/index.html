@@ -141,7 +141,7 @@
   .card .buffed { position: absolute; top: 2px; right: 2px; font-size: .6rem; }
 
   /* ---------------- 手札 ---------------- */
-  #hand-row { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  #hand-row { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; touch-action: pan-x; }
   #hand { display: flex; gap: 6px; padding: 6px 6px 4px; }
   #hand .card { width: 24vw; max-width: 106px; flex-shrink: 0; }
   #hand .card.disabled { filter: brightness(.5); }
@@ -340,6 +340,7 @@
   <p id="result-quote"></p>
   <p id="result-stats"></p>
   <div>
+    <button class="result-btn" id="rank-btn">🏆 スコア登録・ランキング</button>
     <button class="result-btn" id="retry-btn">もう一度決闘</button>
     <a class="result-btn" href="../games/">🕹 ゲームセンター</a>
     <a class="result-btn" id="share-x" target="_blank" rel="noopener">Xで自慢</a>
@@ -893,13 +894,31 @@ function renderField(side, elId, mine) {
     }
   }
 }
+/* 手札はタップで選択、横スワイプ(スクロール)では選択しない */
+let handTap = null;
 function renderHand() {
   const h = $("hand");
   h.innerHTML = "";
   P.hand.forEach((key, i) => {
     const el = cardEl(key);
     if (!canPlay(key)) el.classList.add("disabled");
-    el.onpointerdown = e => { e.preventDefault(); if (!busy && !paused && turnOwner === "player" && !over) openModal(i); };
+    el.addEventListener("pointerdown", e => {
+      handTap = { i, x: e.clientX, y: e.clientY, t: Date.now() };
+    });
+    el.addEventListener("pointermove", e => {
+      // 少しでも動いたらスワイプ扱いにして選択をキャンセル
+      if (handTap && handTap.i === i &&
+          (Math.abs(e.clientX - handTap.x) > 8 || Math.abs(e.clientY - handTap.y) > 12)) handTap = null;
+    });
+    el.addEventListener("pointercancel", () => { handTap = null; });
+    el.addEventListener("pointerup", e => {
+      const t = handTap;
+      handTap = null;
+      if (!t || t.i !== i) return;
+      if (Math.abs(e.clientX - t.x) > 8 || Math.abs(e.clientY - t.y) > 12) return; // スワイプ
+      if (Date.now() - t.t > 700) return;                                          // 長押し
+      if (!busy && !paused && turnOwner === "player" && !over) openModal(i);
+    });
     h.appendChild(el);
   });
 }
@@ -1769,6 +1788,8 @@ async function endDuel(win) {
     ? `⚔️しげる決闘⚔️ 3連戦制覇でCHAMPION!! 与ダメ${dmgDealt} 撃破${killCount}体 称号「${titleOf(stats)}」`
     : `⚔️しげる決闘⚔️ STAGE${stage + 1}で敗北… 与ダメ${dmgDealt} 撃破${killCount}体`;
   $("share-x").href = "https://twitter.com/intent/tweet?text=" + encodeURIComponent(text) + "&url=" + encodeURIComponent(location.href);
+  $("rank-btn").onclick = () => RANK.open("duel", dmgDealt,
+    (champion ? "制覇" : "STAGE" + (stage + 1)) + "/撃破" + killCount);
   renderTitleStats();
 }
 
@@ -1795,6 +1816,243 @@ $("resume-btn").onpointerdown = e => {
   $("pause-overlay").classList.remove("show");
   if (bgmEl) { try { bgmEl.play().catch(() => {}); } catch (err) {} }
 };
+</script>
+<script>
+/* ================================================================
+   みんなのランキング(全作品共通モジュール)
+   ・端末内(localStorage)には必ず記録される
+   ・RANK_ENDPOINT が設定されていれば共有ランキングにも読み書きする
+     (未設定/通信失敗時は自動で端末内モードにフォールバック)
+================================================================ */
+window.RANK = (function () {
+  const EP = "";
+  const GAMES = {
+    onigiri:   { label: "🍙 しげるのおにぎり", unit: "点" },
+    tataki:    { label: "🔨 しげる叩き",      unit: "点" },
+    puyoshige: { label: "🎰 CRしげさん",      unit: "点" },
+    duel:      { label: "⚔️ しげる決闘",      unit: "与ダメ" }
+  };
+  const NICK_KEY = "shige_nick";
+  const lsKey = g => "shige_rank_" + g;
+  let online = null;   // null=未接続, true=共有OK, false=端末内のみ
+
+  function getNick() { try { return localStorage.getItem(NICK_KEY) || ""; } catch (e) { return ""; } }
+  function setNick(v) { try { localStorage.setItem(NICK_KEY, v); } catch (e) {} }
+  function localGet(g) { try { return JSON.parse(localStorage.getItem(lsKey(g))) || []; } catch (e) { return []; } }
+  function localPut(g, a) { try { localStorage.setItem(lsKey(g), JSON.stringify(a)); } catch (e) {} }
+
+  const norm = a => (Array.isArray(a) ? a : [])
+    .filter(x => x && typeof x.s === "number" && isFinite(x.s))
+    .map(x => ({ n: String(x.n || "名無しの茂").slice(0, 12), s: Math.round(x.s), e: String(x.e || "").slice(0, 24), t: x.t || 0 }))
+    .sort((x, y) => y.s - x.s).slice(0, 50);
+  function merge(a, b) {
+    const seen = new Set(), out = [];
+    [...norm(a), ...norm(b)].forEach(e => {
+      const k = e.n + "|" + e.s + "|" + e.t;
+      if (!seen.has(k)) { seen.add(k); out.push(e); }
+    });
+    return norm(out);
+  }
+
+  async function req(g, method, body) {
+    if (!EP) { online = false; return null; }
+    const url = EP.replace(/\/+$/, "") + "/" + g;
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 7000);
+    try {
+      const r = await fetch(url, {
+        method, signal: ctl.signal, cache: "no-store",
+        headers: body ? { "Content-Type": "application/json" } : undefined,
+        body: body ? JSON.stringify(body) : undefined
+      });
+      clearTimeout(timer);
+      if (!r.ok) { online = false; return null; }
+      online = true;
+      if (method === "GET") { const t = (await r.text()).trim(); return t ? JSON.parse(t) : []; }
+      return true;
+    } catch (e) { clearTimeout(timer); online = false; return null; }
+  }
+  async function list(g) {
+    const r = await req(g, "GET");
+    if (Array.isArray(r)) { const m = merge(r, localGet(g)); localPut(g, m); return m; }
+    return norm(localGet(g));
+  }
+  async function submit(g, nick, score, extra) {
+    if (nick) setNick(nick);   // 次回の入力欄に引き継ぐ
+    const entry = { n: (nick || "名無しの茂").slice(0, 12), s: Math.round(score), e: (extra || "").slice(0, 24), t: Date.now() };
+    let base = await req(g, "GET");
+    if (!Array.isArray(base)) base = localGet(g);
+    const merged = merge([...base, entry], localGet(g));
+    localPut(g, merged);
+    await req(g, "PUT", merged);
+    return { list: merged, entry };
+  }
+
+  /* ---------------- UI ---------------- */
+  const CSS = `
+  #rank-ov { position: fixed; inset: 0; z-index: 9999; background: rgba(6,3,16,.93);
+    display: none; align-items: center; justify-content: center; padding: 14px;
+    font-family: "Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif; }
+  #rank-ov.show { display: flex; }
+  #rank-ov .rank-box { width: 100%; max-width: 420px; max-height: 92vh; overflow-y: auto;
+    background: linear-gradient(170deg,#241a3f,#140f28); border: 2px solid #d4a017;
+    border-radius: 14px; padding: 14px; color: #fff; box-shadow: 0 10px 40px rgba(0,0,0,.7); }
+  #rank-ov h3 { font-size: 1.1rem; color: #ffd75e; text-align: center; margin-bottom: 8px; }
+  #rank-mine { text-align: center; font-size: .9rem; color: #fff; background: rgba(255,215,94,.14);
+    border-radius: 8px; padding: 7px; margin-bottom: 8px; display: none; }
+  #rank-mine.show { display: block; }
+  #rank-mine b { color: #ffd75e; font-size: 1.25rem; font-family: "Courier New",monospace; }
+  #rank-form { display: none; gap: 6px; margin-bottom: 10px; }
+  #rank-form.show { display: flex; }
+  #rank-nick { flex: 1; min-width: 0; font-size: 1rem; padding: 9px 10px; border-radius: 8px;
+    border: 1px solid #5c4a8a; background: #100c20; color: #fff; }
+  #rank-send { font-size: .9rem; font-weight: 800; padding: 9px 16px; border: none; border-radius: 8px;
+    background: linear-gradient(180deg,#ffd75e,#d4a017); color: #3a2800; white-space: nowrap; }
+  #rank-send:disabled { opacity: .5; }
+  #rank-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+  #rank-tabs button { flex: 1 1 auto; font-size: .68rem; padding: 6px 4px; border: 1px solid #4a3a75;
+    border-radius: 7px; background: #1b1435; color: #cabfe6; white-space: nowrap; }
+  #rank-tabs button.on { background: #6a5acd; color: #fff; border-color: #8a7ae0; font-weight: 800; }
+  #rank-list { list-style: none; }
+  #rank-list li { display: flex; align-items: baseline; gap: 7px; font-size: .84rem;
+    padding: 6px 4px; border-bottom: 1px solid rgba(255,255,255,.08); }
+  #rank-list li.me { background: rgba(255,215,94,.16); border-radius: 6px; }
+  #rank-list .rk { width: 2.1em; text-align: right; color: #9c8fc4; font-weight: 800; font-family: "Courier New",monospace; }
+  #rank-list .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #rank-list .ex { font-size: .66rem; color: #8f83b8; }
+  #rank-list .sc { font-weight: 900; color: #ffd75e; font-family: "Courier New",monospace; }
+  #rank-list li:nth-child(1) .rk { color: #ffd75e; } #rank-list li:nth-child(2) .rk { color: #d8d8d8; }
+  #rank-list li:nth-child(3) .rk { color: #cd7f32; }
+  #rank-empty { text-align: center; color: #8f83b8; font-size: .8rem; padding: 16px 0; }
+  #rank-status { font-size: .66rem; color: #8f83b8; text-align: center; margin-top: 8px; }
+  #rank-close { display: block; width: 100%; margin-top: 10px; font-size: .95rem; font-weight: 800;
+    padding: 11px; border: none; border-radius: 22px; background: linear-gradient(180deg,#6a5acd,#483d8b); color: #fff; }`;
+
+  let cur = null;   // {game, score, extra}
+  let myEntry = null;
+
+  function ensureUI() {
+    if (document.getElementById("rank-ov")) return;
+    const st = document.createElement("style");
+    st.textContent = CSS;
+    document.head.appendChild(st);
+    const ov = document.createElement("div");
+    ov.id = "rank-ov";
+    ov.innerHTML =
+      '<div class="rank-box">' +
+      '<h3 id="rank-title">🏆 みんなのランキング</h3>' +
+      '<div id="rank-mine"></div>' +
+      '<div id="rank-form"><input id="rank-nick" maxlength="12" placeholder="ニックネーム(12文字まで)">' +
+      '<button id="rank-send">登録</button></div>' +
+      '<div id="rank-tabs"></div><ol id="rank-list"></ol><div id="rank-empty"></div>' +
+      '<div id="rank-status"></div><button id="rank-close">閉じる</button></div>';
+    document.body.appendChild(ov);
+    ov.addEventListener("click", e => { if (e.target === ov) hide(); });
+    document.getElementById("rank-close").onclick = hide;
+    document.getElementById("rank-send").onclick = doSubmit;
+    document.getElementById("rank-nick").addEventListener("keydown", e => {
+      if (e.key === "Enter") doSubmit();
+    });
+  }
+  function hide() { document.getElementById("rank-ov").classList.remove("show"); }
+  function setStatus(t) { document.getElementById("rank-status").textContent = t; }
+
+  function renderList(arr, game) {
+    const ol = document.getElementById("rank-list");
+    const em = document.getElementById("rank-empty");
+    ol.innerHTML = "";
+    const unit = (GAMES[game] || {}).unit || "点";
+    if (!arr.length) {
+      em.textContent = "まだ誰も登録していない。一番乗りだ。";
+      return;
+    }
+    em.textContent = "";
+    arr.slice(0, 20).forEach((e, i) => {
+      const li = document.createElement("li");
+      if (myEntry && e.n === myEntry.n && e.s === myEntry.s && e.t === myEntry.t) li.className = "me";
+      li.innerHTML = '<span class="rk">' + (i + 1) + '</span>' +
+        '<span class="nm">' + esc(e.n) + (e.e ? ' <span class="ex">' + esc(e.e) + '</span>' : '') + '</span>' +
+        '<span class="sc">' + e.s.toLocaleString() + '</span><span class="ex">' + unit + '</span>';
+      ol.appendChild(li);
+    });
+  }
+  function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+
+  async function refresh(game) {
+    setStatus("読み込み中…");
+    const arr = await list(game);
+    renderList(arr, game);
+    setStatus(EP
+      ? (online ? "共有ランキングに接続中(みんなのスコア)" : "共有ランキングに繋がらないため端末内の記録を表示中")
+      : "この端末に保存されたランキング(共有設定は未接続)");
+  }
+
+  async function doSubmit() {
+    if (!cur) return;
+    const inp = document.getElementById("rank-nick");
+    const btn = document.getElementById("rank-send");
+    const nick = (inp.value || "").trim() || "名無しの茂";
+    setNick(nick);
+    btn.disabled = true;
+    setStatus("登録中…");
+    const r = await submit(cur.game, nick, cur.score, cur.extra);
+    myEntry = r.entry;
+    const rank = r.list.findIndex(e => e.t === myEntry.t && e.n === myEntry.n && e.s === myEntry.s) + 1;
+    document.getElementById("rank-form").classList.remove("show");
+    const mine = document.getElementById("rank-mine");
+    mine.classList.add("show");
+    mine.innerHTML = "登録完了! " + esc(nick) + " / <b>" + myEntry.s.toLocaleString() + "</b> " +
+      ((GAMES[cur.game] || {}).unit || "点") + (rank > 0 ? " → 現在 " + rank + "位" : "");
+    renderList(r.list, cur.game);
+    setStatus(online ? "共有ランキングに登録しました" : "端末内に保存しました(共有ランキングは未接続)");
+    btn.disabled = false;
+  }
+
+  /* 結果画面から呼ぶ: スコアを登録してランキングを見る */
+  function open(game, score, extra) {
+    ensureUI();
+    cur = { game, score, extra };
+    myEntry = null;
+    document.getElementById("rank-title").textContent = "🏆 " + ((GAMES[game] || {}).label || game) + " ランキング";
+    const mine = document.getElementById("rank-mine");
+    mine.classList.add("show");
+    mine.innerHTML = "今回のスコア <b>" + Math.round(score).toLocaleString() + "</b> " +
+      ((GAMES[game] || {}).unit || "点") + (extra ? ' <span class="ex">' + esc(extra) + "</span>" : "");
+    document.getElementById("rank-form").classList.add("show");
+    document.getElementById("rank-nick").value = getNick();
+    document.getElementById("rank-tabs").innerHTML = "";
+    document.getElementById("rank-ov").classList.add("show");
+    refresh(game);
+  }
+
+  /* ゲームセンター用: 全作品のランキングをタブで見る */
+  function hub(games) {
+    ensureUI();
+    cur = null; myEntry = null;
+    document.getElementById("rank-title").textContent = "🏆 みんなのランキング";
+    document.getElementById("rank-mine").classList.remove("show");
+    document.getElementById("rank-form").classList.remove("show");
+    const tabs = document.getElementById("rank-tabs");
+    tabs.innerHTML = "";
+    const keys = games || Object.keys(GAMES);
+    keys.forEach((g, i) => {
+      const b = document.createElement("button");
+      b.textContent = (GAMES[g] || {}).label || g;
+      b.onclick = () => {
+        [...tabs.children].forEach(c => c.classList.remove("on"));
+        b.classList.add("on");
+        refresh(g);
+      };
+      if (i === 0) b.classList.add("on");
+      tabs.appendChild(b);
+    });
+    document.getElementById("rank-ov").classList.add("show");
+    refresh(keys[0]);
+  }
+
+  return { open, hub, list, submit, getNick, setNick, hide, games: GAMES, endpoint: EP };
+})();
+
 </script>
 </body>
 </html>
