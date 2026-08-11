@@ -936,8 +936,16 @@ let pair = null;            // {c, r, rot, a, b}
 let queue = [];             // 次の組
 let phase = "idle";         // fall / resolve / over
 let running = false, paused = false;
+/* レベル: 1〜20。Lv20の落下速度は旧最速(150ms)より少し速い120msに設定し、
+   そこまでを緩やかな等比カーブで繋ぐ(1レベルごとに約9.4%ずつ加速) */
+const LEVEL_MAX = 20;
+const FALL_START = 780, FALL_MIN = 120;
+const LEVEL_EVERY = 12;   // この手数ごとにレベルアップ
+const FALL_RATE = Math.pow(FALL_MIN / FALL_START, 1 / (LEVEL_MAX - 1));
+const fallForLevel = lv => Math.max(FALL_MIN, Math.round(FALL_START * Math.pow(FALL_RATE, lv - 1)));
+
 let score = 0, maxChain = 0, jackpots = 0, cleared = 0, level = 1, pairsPlaced = 0;
-let fallInterval = 780, fallAcc = 0, softDrop = false;
+let fallInterval = FALL_START, fallAcc = 0, softDrop = false;
 let feverUntil = 0;         // performance.now()ベース
 let feverLen = FEVER_SEC;   // 進行中の当たりの長さ(パチンコ当たりは60秒)
 let popping = [];           // [{c,r,kind,t0}]
@@ -1018,25 +1026,73 @@ function dropOjama(count) {
   }
 }
 
-/* ---------- 虹しげる: 隣接の最多色に変身 ---------- */
+/* ---------- 虹しげる(ワイルド)の変身 ----------
+   旧実装は「隣接で一番数が多い色」に変身していたため、
+   「赤2個の隣に置いたが、青にすれば4個そろって消えた」ような取りこぼしがあった。
+   今は各色を実際に当てはめてみて、できるグループが最大になる色を選ぶ。
+   同じ虹どうしは連結したワイルド塊として一緒に数えるので、
+   虹が固まって落ちても足並みをそろえて同じ色に変身する。 */
+const NB4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+const inField = (x, y) => x >= 0 && x < COLS && y >= HIDDEN && y < ROWS;
+
+/* (c,r) を色 k にしたと仮定したときに繋がるぷよ数。虹はワイルドとして数える */
+function wildGroupSize(c, r, k) {
+  const seen = new Uint8Array(COLS * ROWS);
+  const stack = [[c, r]];
+  seen[idx(c, r)] = 1;
+  let n = 0;
+  while (stack.length) {
+    const [x, y] = stack.pop();
+    n++;
+    for (const [dx, dy] of NB4) {
+      const nx = x + dx, ny = y + dy;
+      if (!inField(nx, ny)) continue;
+      const ni = idx(nx, ny);
+      if (seen[ni]) continue;
+      const v = field[ni];
+      if (v === k || v === RAINBOW) { seen[ni] = 1; stack.push([nx, ny]); }
+    }
+  }
+  return n;
+}
+/* その色が実際に隣接している数(同点時の判断材料) */
+function adjCount(c, r, k) {
+  let n = 0;
+  for (const [dx, dy] of NB4) {
+    const nx = c + dx, ny = r + dy;
+    if (inField(nx, ny) && field[idx(nx, ny)] === k) n++;
+  }
+  return n;
+}
+function colorCensus() {
+  const cnt = [0, 0, 0, 0, 0];
+  for (let i = 0; i < field.length; i++) if (field[i] >= 1 && field[i] <= 4) cnt[field[i]]++;
+  return cnt;
+}
 function convertRainbows() {
-  for (let r = HIDDEN; r < ROWS; r++) {
-    for (let c = 0; c < COLS; c++) {
-      if (field[idx(c, r)] !== RAINBOW) continue;
-      const cnt = {};
-      [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx, dy]) => {
-        const nx = c + dx, ny = r + dy;
-        if (nx < 0 || nx >= COLS || ny < HIDDEN || ny >= ROWS) return;
-        const v = field[idx(nx, ny)];
-        if (v >= 1 && v <= 4) cnt[v] = (cnt[v] || 0) + 1;
-      });
-      const keys = Object.keys(cnt);
-      if (keys.length) {
-        field[idx(c, r)] = +keys.reduce((a, b) => cnt[a] >= cnt[b] ? a : b);
-      } else if (field[idx(c, r + 1)] !== 0 || r === ROWS - 1) {
-        field[idx(c, r)] = 1 + Math.floor(Math.random() * 4); // 着地したのに孤立なら適当に変身
+  for (let guard = 0; guard < COLS * ROWS; guard++) {
+    const census = colorCensus();
+    let best = null;
+    for (let r = HIDDEN; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        if (field[idx(c, r)] !== RAINBOW) continue;
+        for (let k = 1; k <= 4; k++) {
+          const size = wildGroupSize(c, r, k);
+          const adj = adjCount(c, r, k);
+          // 消える色を最優先 → グループが大きい色 → 実際に隣接している色 → 盤面に多い色
+          const cand = { c, r, k, clears: size >= 4 ? 1 : 0, size, adj, pop: census[k] };
+          if (!best ||
+              cand.clears > best.clears ||
+              (cand.clears === best.clears && cand.size > best.size) ||
+              (cand.clears === best.clears && cand.size === best.size && cand.adj > best.adj) ||
+              (cand.clears === best.clears && cand.size === best.size && cand.adj === best.adj && cand.pop > best.pop)) best = cand;
+        }
       }
     }
+    if (!best) return;  // 虹はもう残っていない
+    // どの色でも孤立(隣に色がなく盤面も真っ白)なら適当な色に
+    if (best.adj === 0 && best.pop === 0) best.k = 1 + Math.floor(Math.random() * 4);
+    field[idx(best.c, best.r)] = best.k;
   }
 }
 
@@ -1073,10 +1129,11 @@ function lockPair() {
   pair = null;
   dropSE();
   pairsPlaced++;
-  if (pairsPlaced % 18 === 0 && fallInterval > 150) {
-    fallInterval = Math.max(150, fallInterval * .87);
+  if (pairsPlaced % LEVEL_EVERY === 0 && level < LEVEL_MAX) {
     level++;
-    document.getElementById("level-hud").textContent = "Lv." + level;
+    fallInterval = fallForLevel(level);
+    document.getElementById("level-hud").textContent = "Lv." + level + (level === LEVEL_MAX ? " MAX" : "");
+    if (level === LEVEL_MAX) { banner("Lv.20 到達!!"); kyuin(); }
   }
   phase = "resolve";
   resolveChains();
@@ -1362,6 +1419,43 @@ const REEL_SYMS = ["総理", "国会", "答弁", "遺憾", "解散", "農政", "
 const HIT_SYM = "総理";
 let holds = [], spinning = false;
 
+/* ---- リール音 ----
+   回転中は無音だったので微かな駆動音(カタカタ)を足し、
+   停止音は実録音を少し下げて合成の「カツン」を重ね、3つ目だけ低く重くする */
+function reelTickSE() {
+  try {
+    const ctx = ensureCtx(), t = ctx.currentTime;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = "square";
+    o.frequency.value = 2100 + Math.random() * 500;
+    g.gain.setValueAtTime(.03, t);
+    g.gain.exponentialRampToValueAtTime(.001, t + .02);
+    o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + .025);
+  } catch (e) {}
+}
+function reelStopSE(i) {
+  const last = i === 2;
+  playAudio(PACHI_SE.reelStop, last ? .6 : .42);  // 実録音は控えめに
+  try {
+    const ctx = ensureCtx(), t = ctx.currentTime;
+    const base = last ? 145 : 250 - i * 25;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = "triangle";
+    o.frequency.setValueAtTime(base, t);
+    o.frequency.exponentialRampToValueAtTime(base * .45, t + .1);
+    g.gain.setValueAtTime(last ? .5 : .3, t);
+    g.gain.exponentialRampToValueAtTime(.001, t + (last ? .24 : .13));
+    o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + .26);
+    // 金属質のアタック(ノイズ)
+    const len = Math.floor(ctx.sampleRate * .05), buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let n = 0; n < len; n++) d[n] = (Math.random() * 2 - 1) * Math.pow(1 - n / len, 3);
+    const s = ctx.createBufferSource(); s.buffer = buf;
+    const hp = ctx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 1100;
+    const ng = ctx.createGain(); ng.gain.value = last ? .22 : .15;
+    s.connect(hp).connect(ng).connect(ctx.destination); s.start(t);
+  } catch (e) {}
+}
 function vibe(p) { try { if (navigator.vibrate) navigator.vibrate(p); } catch (e) {} }
 
 function renderHolds() {
@@ -1524,13 +1618,17 @@ async function spinReels(h) {
   const startSpin = () => {
     for (let i = 0; i < 3; i++) {
       setReel(i, REEL_SYMS[0], "spin");
-      timers[i] = setInterval(() => setReel(i, REEL_SYMS[Math.floor(Math.random() * REEL_SYMS.length)], "spin"), 55);
+      let tick = 0;
+      timers[i] = setInterval(() => {
+        setReel(i, REEL_SYMS[Math.floor(Math.random() * REEL_SYMS.length)], "spin");
+        if (i === 0 && ++tick % 2 === 0) reelTickSE(); // 駆動音は1リール分だけ(音が濁らないように)
+      }, 55);
     }
   };
   const stop = (i, cls) => {
     clearInterval(timers[i]);
     setReel(i, final[i], cls);
-    playAudio(PACHI_SE.reelStop, .7); // 実録リール停止音
+    reelStopSE(i);
   };
   // 擬似連: 仮停止→再変動(当たりほど回数が多い=激アツ示唆)
   const pseudo = h.hit ? 1 + Math.floor(Math.random() * 2) : (reach && Math.random() < .3 ? 1 : 0);
@@ -1555,6 +1653,7 @@ async function spinReels(h) {
     // リーチ: 盤面点滅→PUSHボタン→対決アニメ(この間ぷよは停止)→群予告→カットイン
     panel.classList.add("reach-mode");
     vibe([120, 60, 120]);
+    await sleep(260);               // リール停止音と重ならないよう間を置く
     playAudio(PACHI_SE.reach, .85); // 実録リーチ発生音
     // 30%で長尺ネタ音声が実況として乱入(リーチ〜当落まで丸ごと喋る)
     if (VOICES_LONG.length && Math.random() < .3)
@@ -1946,7 +2045,7 @@ document.getElementById("start-btn").addEventListener("click", () => {
   queue = [];
   refillQueue();
   score = 0; maxChain = 0; jackpots = 0; cleared = 0; level = 1; pairsPlaced = 0;
-  fallInterval = 780; fallAcc = 0; softDrop = false; feverUntil = 0;
+  fallInterval = FALL_START; fallAcc = 0; softDrop = false; feverUntil = 0;
   popping = []; chainLabel = null; paused = false; particles = []; feverActiveFlag = false;
   holds = []; spinning = false; renderHolds();
   fxPause = 0; reachShowing = false; lastKishida = -1e9;
