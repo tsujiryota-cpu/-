@@ -1191,37 +1191,44 @@ window.RANK = (function () {
     return norm(out);
   }
 
-  async function req(g, method, body) {
+  /* 共有ストアは「1つのJSONドキュメントに全ゲーム分」を入れる方式
+     { onigiri:[...], tataki:[...], puyoshige:[...], duel:[...] }
+     → jsonblob / Firebase RTDB など GET+PUT だけで動く先に対応できる */
+  async function rawReq(method, body) {
     if (!EP) { online = false; return null; }
-    const url = EP.replace(/\/+$/, "") + "/" + g;
     const ctl = new AbortController();
-    const timer = setTimeout(() => ctl.abort(), 7000);
+    const timer = setTimeout(() => ctl.abort(), 8000);
     try {
-      const r = await fetch(url, {
-        method, signal: ctl.signal, cache: "no-store",
-        headers: body ? { "Content-Type": "application/json" } : undefined,
-        body: body ? JSON.stringify(body) : undefined
-      });
+      const opt = { method, signal: ctl.signal, cache: "no-store" };
+      if (body !== undefined) {
+        opt.headers = { "Content-Type": "application/json" };
+        opt.body = JSON.stringify(body);
+      }
+      const r = await fetch(EP, opt);
       clearTimeout(timer);
       if (!r.ok) { online = false; return null; }
       online = true;
-      if (method === "GET") { const t = (await r.text()).trim(); return t ? JSON.parse(t) : []; }
+      if (method === "GET") {
+        const t = (await r.text()).trim();
+        let j = {};
+        try { j = t ? JSON.parse(t) : {}; } catch (e) { j = {}; }
+        return (j && typeof j === "object" && !Array.isArray(j)) ? j : {};
+      }
       return true;
     } catch (e) { clearTimeout(timer); online = false; return null; }
   }
   async function list(g) {
-    const r = await req(g, "GET");
-    if (Array.isArray(r)) { const m = merge(r, localGet(g)); localPut(g, m); return m; }
+    const all = await rawReq("GET");
+    if (all) { const m = merge(all[g] || [], localGet(g)); localPut(g, m); return m; }
     return norm(localGet(g));
   }
   async function submit(g, nick, score, extra) {
     if (nick) setNick(nick);   // 次回の入力欄に引き継ぐ
     const entry = { n: (nick || "名無しの茂").slice(0, 12), s: Math.round(score), e: (extra || "").slice(0, 24), t: Date.now() };
-    let base = await req(g, "GET");
-    if (!Array.isArray(base)) base = localGet(g);
-    const merged = merge([...base, entry], localGet(g));
+    const all = (await rawReq("GET")) || {};
+    const merged = merge([...(all[g] || []), entry], localGet(g));
     localPut(g, merged);
-    await req(g, "PUT", merged);
+    if (EP) { all[g] = merged; await rawReq("PUT", all); }
     return { list: merged, entry };
   }
 
