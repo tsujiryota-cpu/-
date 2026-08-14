@@ -95,6 +95,12 @@
   .rank-cta button:active { transform: scale(.98); }
   .rank-cta p { font-size: .68rem; color: var(--muted); margin-top: 6px; line-height: 1.7; }
 </style>
+<!-- nozoom-guard -->
+<style>
+  /* iOS Safariの「ダブルタップで拡大されて戻せない」を防ぐ(ピンチ拡大は残す) */
+  *, *::before, *::after { touch-action: manipulation; }
+</style>
+<script>document.addEventListener("dblclick", e => { if (e.cancelable) e.preventDefault(); }, { passive: false });</script>
 </head>
 <body>
 <div class="app">

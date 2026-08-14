@@ -238,6 +238,12 @@
     z-index: 9;
   }
 </style>
+<!-- nozoom-guard -->
+<style>
+  /* iOS Safariの「ダブルタップで拡大されて戻せない」を防ぐ(縦長の読み物なのでピンチ拡大は残す) */
+  *, *::before, *::after { touch-action: manipulation; }
+</style>
+<script>document.addEventListener("dblclick", e => { if (e.cancelable) e.preventDefault(); }, { passive: false });</script>
 </head>
 <body>
 <a href="games/" style="position:fixed;top:10px;right:10px;z-index:99;background:#e63946;color:#fff;font-weight:bold;font-size:12px;padding:8px 12px;border-radius:999px;text-decoration:none;box-shadow:0 4px 12px rgba(0,0,0,.4)">🎮 ゲーセンへ</a>

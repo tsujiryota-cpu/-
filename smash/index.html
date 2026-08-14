@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>しげる大乱闘【スマッシュ・科学的根拠0人】</title>
 <meta property="og:title" content="💥 しげる大乱闘【全10キャラのスマッシュ対戦】">
 <meta property="og:description" content="しげる素材で殴り合え。ふっとばして画面外へ叩き出す。">
@@ -168,6 +168,8 @@
   #b-sp  { width: 70px; height: 70px; font-size: .95rem; background: radial-gradient(circle at 38% 30%, #9ecbff, #1f63c8); right: 52%; bottom: 44%; }
   #b-jmp { width: 64px; height: 64px; font-size: .82rem; background: radial-gradient(circle at 38% 30%, #b6ff9e, #23a02a); right: 20%; bottom: 72%; }
   #b-grd { width: 54px; height: 54px; font-size: .72rem; background: radial-gradient(circle at 38% 30%, #d9d2ff, #6b52d8); right: 58%; bottom: 12%; }
+  /* 指が触れる面はピンチもダブルタップも完全に殺す */
+  #stage-wrap, #cv, #pads, #stick-zone, #btn-zone, #stick-zone2, #btn-zone2, .gb, #stick, #stick2 { touch-action: none; }
   #pause-btn { position: absolute; right: 8px; top: 6px; z-index: 8; border: none; background: rgba(0,0,0,.5); color: #fff; border-radius: 9px; padding: 6px 10px; font-size: .74rem; font-family: inherit; border: 1px solid #ffffff22; }
   .hint { position: absolute; left: 0; right: 0; bottom: 2px; text-align: center; font-size: .58rem; color: #6d6690; }
 
@@ -209,7 +211,64 @@
   .road img.done { border-color: #45d67a; filter: none; }
   .road img.now { border-color: #ffd75e; box-shadow: 0 0 14px #ffb000; }
   .road img.todo { filter: grayscale(1) brightness(.55); }
+
+  /* CPUの強さ */
+  #lv-box { background: rgba(255,255,255,.06); border-radius: 12px; padding: 8px 10px; }
+  .lv-head { font-size: .72rem; color: #b7aecd; margin-bottom: 5px; }
+  .lv-head b { color: #ffd75e; font-size: .84rem; }
+  .lv-row { display: flex; gap: 5px; }
+  .lv-row button {
+    flex: 1; font-family: inherit; font-size: .72rem; font-weight: 800; padding: 8px 2px;
+    border: 2px solid #3a3552; border-radius: 9px; background: #191627; color: #9d94b8;
+  }
+  .lv-row button.on { border-color: #ffd75e; color: #2a1a00; background: linear-gradient(180deg,#ffd75e,#e09a1a); }
+  .lv-row button.on.hot { border-color: #ff5a3c; background: linear-gradient(180deg,#ff8a5a,#d81f1f); color: #fff; }
+  .lv-desc { font-size: .64rem; color: #8f86a8; margin-top: 5px; line-height: 1.5; min-height: 1.9em; }
 </style>
+<!-- nozoom-guard -->
+<style>
+  /* iOS Safariは祖先要素の touch-action を無視してダブルタップ拡大を起こすことがあるため、
+     全要素に個別指定する(ドラッグ面の touch-action:none は詳細度で勝つので生きたまま) */
+  *, *::before, *::after { touch-action: manipulation; }
+</style>
+<script>
+/* ================================================================
+   勝手に画面が拡大されるのを防ぐ + 拡大されてしまったら元に戻す
+   ・ダブルタップ拡大 → touch-action と dblclick で抑止
+   ・ピンチ拡大 → Safari独自の gesture イベントを抑止
+   ・それでも拡大された場合 → visualViewport を監視して倍率を戻す
+================================================================ */
+(function () {
+  const VP = "width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover";
+  const meta = document.querySelector('meta[name=viewport]');
+  const stop = e => { if (e.cancelable) e.preventDefault(); };
+  ["gesturestart", "gesturechange", "gestureend"].forEach(t =>
+    document.addEventListener(t, stop, { passive: false }));
+  document.addEventListener("dblclick", stop, { passive: false });
+  let lastReset = 0;
+  function resetZoom() {
+    const now = Date.now();
+    if (now - lastReset < 700 || !meta) return;
+    lastReset = now;
+    // 一度別の指定にしてから戻すと Safari が倍率を作り直す
+    meta.setAttribute("content", "width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no");
+    setTimeout(() => {
+      meta.setAttribute("content", VP);
+      try { window.scrollTo(0, 0); } catch (e) {}
+    }, 50);
+  }
+  window.resetZoom = resetZoom;
+
+  const vv = window.visualViewport;
+  if (vv) {
+    const check = () => { if (vv.scale > 1.02) resetZoom(); };
+    vv.addEventListener("resize", check);
+    vv.addEventListener("scroll", check);
+  }
+  window.addEventListener("orientationchange", () => setTimeout(resetZoom, 250));
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) resetZoom(); });
+})();
+</script>
 </head>
 <body>
 
@@ -247,6 +306,11 @@
       <div class="moves" id="cd-moves">-</div>
       <div class="bars" id="cd-bars"></div>
     </div>
+  </div>
+  <div id="lv-box">
+    <div class="lv-head">CPUの強さ <b id="lv-name">ふつう</b></div>
+    <div class="lv-row" id="lv-row"></div>
+    <div class="lv-desc" id="lv-desc"></div>
   </div>
   <div id="road-strip" class="road"></div>
   <button class="btn" id="sel-go">この茂で行く</button>
@@ -552,6 +616,30 @@ const CHAR_KEYS = Object.keys(CHARS);
 CHAR_KEYS.forEach(k => { const c = CHARS[k]; c.key = k; c.mv = Object.assign({}, ARCH[c.arche]); });
 
 /* ================================================================
+   CPUの強さ(5段階)
+   react   : 判断を切り替える間隔(フレーム。短いほど反応が速い)
+   aggr    : 攻めっ気(攻撃/必殺を選ぶ確率の重み)
+   guard   : 近距離でガードを選ぶ確率
+   smash   : スマッシュの溜めフレーム(長いほど威力が高い)
+   edge    : 崖外の相手を追いかけて仕留めにいく確率
+   idle    : 何もせず突っ立っている確率
+   tech    : 飛び道具の回避/溜めへの割り込みなど「読み」の精度
+   slowRec : 復帰行動を始めるまでの遅れ(フレーム)
+================================================================ */
+const CPU_LV = [
+  null,
+  { n: "雑魚",   d: "棒立ちが多い。歩いてきて弱攻撃を振るだけ",       react: [42, 84], aggr: .30, guard: .002, smash: 10, edge: 0,   idle: .42, tech: .15, slowRec: 26 },
+  { n: "弱い",   d: "たまにスマッシュ。復帰はしてくる",               react: [30, 62], aggr: .52, guard: .008, smash: 20, edge: .08, idle: .22, tech: .35, slowRec: 14 },
+  { n: "ふつう", d: "空中攻撃と必殺を混ぜてくる。ガードもする",       react: [22, 46], aggr: .70, guard: .016, smash: 30, edge: .24, idle: .10, tech: .60, slowRec: 6 },
+  { n: "強い",   d: "溜めスマッシュと崖狩り。隙を見逃さない",         react: [15, 33], aggr: .86, guard: .026, smash: 40, edge: .48, idle: .03, tech: .82, slowRec: 2 },
+  { n: "激強",   d: "反応がほぼ即時。崖外まで追ってきて叩き落とす",   react: [9, 22],  aggr: .96, guard: .034, smash: 50, edge: .72, idle: 0,   idleX: 0, tech: 1, slowRec: 0 }
+];
+const LV_KEY = "smash_cpu_lv";
+let cpuLv = 3;
+try { const v = parseInt(localStorage.getItem(LV_KEY), 10); if (v >= 1 && v <= 5) cpuLv = v; } catch (e) {}
+function saveCpuLv() { try { localStorage.setItem(LV_KEY, String(cpuLv)); } catch (e) {} }
+
+/* ================================================================
    ステージ
 ================================================================ */
 const STAGES = [
@@ -712,7 +800,7 @@ class Fighter {
     this.trail = []; this.hitFlash = 0; this.jitter = 0;
     this.ko = 0; this.respawn = 0;
     this.kos = 0; this.given = 0; this.taken = 0;
-    this.aiTimer = 0; this.aiMode = "approach"; this.aiWant = newInput();
+    this.aiTimer = 0; this.aiMode = "approach"; this.aiWant = newInput(); this.recDelay = -1;
     this.itemHammer = 0; this.itemStar = 0;
     this.lastHitBy = -1;
     this.ly0 = 0; this.pendTilt = "ftilt";
@@ -1830,14 +1918,16 @@ function cpuThink(f, foe) {
   const w = f.aiWant;
   w.lx = 0; w.ly = 0; w.a = 0; w.b = 0; w.j = 0; w.g = 0;
   if (f.ko > 0 || over) return;
-  const lv = f.lv;                      // 1..5
+  const lv = clamp(f.lv, 1, 5), P = CPU_LV[lv];
   const dx = foe.x - f.x, dy = foe.y - f.y, adx = Math.abs(dx);
   const mn = stage.main;
   const offstage = f.x < mn.x1 - 10 || f.x > mn.x2 + 10;
   f.aiTimer--;
 
-  // 1) 復帰を最優先
+  // 1) 復帰を最優先(弱いCPUほど動き出しが遅れる)
   if (offstage || f.y > mn.y + 40) {
+    if (f.recDelay === undefined || f.recDelay < 0) f.recDelay = P.slowRec;
+    if (f.recDelay > 0) { f.recDelay--; return; }
     const dir = f.x < 0 ? 1 : -1;
     w.lx = dir;
     if (f.hitstun <= 0) {
@@ -1847,37 +1937,47 @@ function cpuThink(f, foe) {
     }
     return;
   }
+  f.recDelay = -1;
   if (f.hitstun > 0) return;
 
   // 2) 飛び道具を避ける/ガードする
   for (const p of projs) {
     if (p.side === f.side) continue;
     if (Math.abs(p.x - f.x) < 150 && Math.sign(p.vx) === Math.sign(f.x - p.x) * -1) {
-      if (lv >= 3 && Math.random() < .06 * lv) { w.g = 1; return; }
-      if (lv >= 2 && Math.random() < .04 * lv) { w.j = 1; }
+      if (Math.random() < .22 * P.tech) { w.g = 1; return; }
+      if (Math.random() < .16 * P.tech) w.j = 1;
     }
   }
-  // 3) 反撃(相手が溜めてるならガードかカウンター)
-  if (foe.chargeKey && adx < 120 && lv >= 3 && Math.random() < .1) {
-    if (Math.random() < .5) { w.ly = 1; w.b = 1; } else w.g = 1;
+  // 3) 相手が溜めているならガードかカウンターで割り込む
+  if (foe.chargeKey && adx < 130 && Math.random() < .16 * P.tech) {
+    if (f.c.db.t === "counter" && Math.random() < .6) { w.ly = 1; w.b = 1; } else w.g = 1;
     return;
   }
+  // 4) 崖狩り: 相手が場外にいるなら追いかけて落としにいく
+  const foeOff = foe.x < mn.x1 - 20 || foe.x > mn.x2 + 20 || foe.y > mn.y + 30;
+  if (foeOff && P.edge > 0 && f.aiMode !== "edge" && f.aiTimer <= 0 && Math.random() < P.edge) {
+    f.aiMode = "edge"; f.aiTimer = 40;
+  }
 
-  // 4) 行動決定(一定間隔で気分を変える)
+  // 5) 行動決定(一定間隔で気分を変える)
   if (f.aiTimer <= 0) {
-    f.aiTimer = Math.round(rand(16, 40) / (1 + lv * .18));
+    f.aiTimer = Math.round(rand(P.react[0], P.react[1]));
     const r = Math.random();
-    if (adx < 74 && Math.abs(dy) < 60) f.aiMode = r < .18 + lv * .07 ? "smash" : r < .78 ? "attack" : "retreat";
-    else if (adx < 190) f.aiMode = r < .3 + lv * .06 ? "special" : "approach";
-    else f.aiMode = r < .22 + lv * .05 ? "special" : "approach";
+    if (r < P.idle) f.aiMode = "idle";
+    else if (adx < 74 && Math.abs(dy) < 60) f.aiMode = r < .10 + P.aggr * .3 ? "smash" : r < .35 + P.aggr * .55 ? "attack" : "retreat";
+    else if (adx < 190) f.aiMode = r < .18 + P.aggr * .25 ? "special" : "approach";
+    else f.aiMode = r < .12 + P.aggr * .2 ? "special" : "approach";
   }
   const dirTo = Math.sign(dx) || 1;
-  f.face = dirTo;
+  if (f.aiMode !== "idle") f.face = dirTo;
   switch (f.aiMode) {
+    case "idle":
+      if (Math.random() < .05) w.lx = dirTo * .4;
+      break;
     case "approach":
       w.lx = dirTo * (adx > 160 ? 1 : .7);
-      if (dy < -70 && f.ground && Math.random() < .12) w.j = 1;
-      if (dy < -50 && !f.ground && Math.random() < .1) { w.ly = -1; w.a = 1; }
+      if (dy < -70 && f.ground && Math.random() < .08 + P.tech * .12) w.j = 1;
+      if (dy < -50 && !f.ground && Math.random() < .06 + P.tech * .12) { w.ly = -1; w.a = 1; }
       break;
     case "attack":
       w.lx = dirTo * .3;
@@ -1887,22 +1987,35 @@ function cpuThink(f, foe) {
     case "smash":
       // 溜めてから離す(chargeKeyが立っている間はAを押し続ける)
       w.lx = dirTo * .8;
-      w.a = f.charge < 12 + lv * 6 ? 1 : 0;
+      w.a = f.charge < P.smash ? 1 : 0;
       break;
     case "special":
       w.b = 1;
       if (f.c.nb.t === "proj" || f.c.nb.t === "charge") w.lx = 0;
       else w.lx = dirTo * .5;
-      if (Math.random() < .12) { w.ly = 1; }   // ときどき下B
+      if (Math.random() < .12) w.ly = 1;   // ときどき下B
       break;
     case "retreat":
       w.lx = -dirTo;
       if (Math.random() < .2) w.g = 1;
       if (Math.random() < .16) w.j = 1;
       break;
+    case "edge": {
+      // 自分が落ちない範囲まで出て、空中前や下で叩き落とす
+      const limit = (foe.x > 0 ? mn.x2 : mn.x1) + (foe.x > 0 ? 1 : -1) * (40 + P.edge * 90);
+      const wantX = foe.x > 0 ? Math.min(foe.x, limit) : Math.max(foe.x, limit);
+      w.lx = Math.sign(wantX - f.x) * .9;
+      if (!f.ground && dy < -20 && f.jumps > 0 && Math.random() < .1) w.j = 1;
+      if (f.ground && Math.abs(wantX - f.x) < 30 && Math.random() < .3) w.j = 1;
+      if (adx < 90 && Math.abs(dy) < 90) { w.a = 1; if (dy > 20) w.ly = 1; }
+      // 自分が落ちそうなら中断
+      if (f.x < mn.x1 - 30 || f.x > mn.x2 + 30) { f.aiMode = "approach"; f.aiTimer = 10; }
+      if (!foeOff) { f.aiMode = "approach"; f.aiTimer = 8; }
+      break;
+    }
   }
   // ときどきガード
-  if (lv >= 2 && adx < 90 && Math.random() < .015 * lv) { w.g = 1; w.a = 0; w.b = 0; }
+  if (adx < 90 && Math.random() < P.guard) { w.g = 1; w.a = 0; w.b = 0; }
 }
 
 /* ================================================================
@@ -1976,7 +2089,8 @@ function buildMatch(p1Key, p2Key, opt) {
   $("combo").classList.remove("on");
   hudCache[0] = hudCache[1] = hudCache[2] = "";
   $("hud1-img").src = IMG[F[0].c.img]; $("hud1-name").textContent = F[0].c.name;
-  $("hud2-img").src = IMG[F[1].c.img]; $("hud2-name").textContent = F[1].c.name;
+  $("hud2-img").src = IMG[F[1].c.img];
+  $("hud2-name").textContent = F[1].c.name + (F[1].cpu ? " [" + CPU_LV[clamp(F[1].lv, 1, 5)].n + "]" : "");
   $("pads").classList.toggle("two", !!(opt && opt.human));
   $("pad-hint").textContent = (opt && opt.human) ? "左=P1 / 右=P2(スマホを横に置いて2人で持つ)" : "Aを長押しして離すとスマッシュ / 上+Bで復帰";
   show("battle-screen");
@@ -2036,7 +2150,8 @@ function showResult(win) {
     ["撃墜数", a.kos + " - " + b.kos],
     ["与えたダメージ", Math.round(a.given) + "% - " + Math.round(b.given) + "%"],
     ["残りストック", stockStr(a.stock) + " - " + stockStr(b.stock)],
-    ["試合時間", Math.floor(sec / 60) + ":" + String(sec % 60).padStart(2, "0")]
+    ["試合時間", Math.floor(sec / 60) + ":" + String(sec % 60).padStart(2, "0")],
+    ["CPUの強さ", b.cpu ? CPU_LV[clamp(b.lv, 1, 5)].n : "2P"]
   ];
   $("res-stats").innerHTML = rows.map(r => `<div><span>${r[0]}</span><b>${r[1]}</b></div>`).join("");
 
@@ -2067,10 +2182,11 @@ function showResult(win) {
 }
 function finalizeRoad(cleared) {
   const sec = Math.round(roadFrames / 60);
-  const score = roadIdx * 3000 + roadKos * 400 + roadStocksLeft * 1500 +
-                Math.max(0, 900 - sec) * 8 + (cleared ? 8000 : 0);
+  const lvMul = [0, .55, .78, 1, 1.3, 1.65][cpuLv];   // 難易度でスコアが伸びる
+  const score = Math.round((roadIdx * 3000 + roadKos * 400 + roadStocksLeft * 1500 +
+                Math.max(0, 900 - sec) * 8 + (cleared ? 8000 : 0)) * lvMul);
   pendingScore = score;
-  pendingExtra = `${roadIdx}/${roadOrder.length}人抜き・${CHARS[myChar].name}`;
+  pendingExtra = `${roadIdx}/${roadOrder.length}人抜き・${CHARS[myChar].name}・${CPU_LV[cpuLv].n}`;
   const box = $("res-stats");
   box.innerHTML += `<div><span>突破数</span><b>${roadIdx} / ${roadOrder.length}人</b></div>` +
     `<div><span>通算撃墜</span><b>${roadKos}</b></div>` +
@@ -2096,7 +2212,7 @@ $("res-next").onclick = () => {
     if (roadIdx >= roadOrder.length || F[0].stock <= 0) { startRoad(); }
     else nextRoadMatch();
   } else if (mode === "2p") startMatch(myChar, p2Char, { human: true, s1: 3, s2: 3 });
-  else startMatch(myChar, p2Char, { lv: 3 });
+  else startMatch(myChar, p2Char, { lv: cpuLv });
 };
 $("res-quit").onclick = () => { $("result-ov").classList.remove("show"); toTitle(); };
 
@@ -2116,7 +2232,7 @@ $("pz-retry").onclick = () => {
   $("pause-ov").classList.remove("show");
   if (mode === "road") nextRoadMatch();
   else if (mode === "2p") startMatch(myChar, p2Char, { human: true });
-  else startMatch(myChar, p2Char, { lv: 3 });
+  else startMatch(myChar, p2Char, { lv: cpuLv });
 };
 $("pz-quit").onclick = () => { $("pause-ov").classList.remove("show"); toTitle(); };
 function toTitle() {
@@ -2160,6 +2276,20 @@ function renderDetail() {
     bar("力", (c.mv.fsmash.d - 12) * 9) + bar("速さ", (c.sp - 2.8) * 58) +
     bar("重さ", (c.w - .78) * 160) + bar("跳躍", (c.jump - 11) * 46);
 }
+function renderLv() {
+  const row = $("lv-row");
+  row.innerHTML = "";
+  for (let i = 1; i <= 5; i++) {
+    const b = document.createElement("button");
+    b.textContent = CPU_LV[i].n;
+    if (i === cpuLv) { b.className = "on" + (i >= 4 ? " hot" : ""); }
+    b.onclick = () => { cpuLv = i; saveCpuLv(); renderLv(); playAudio(SE.hitL, .3); };
+    row.appendChild(b);
+  }
+  $("lv-name").textContent = CPU_LV[cpuLv].n;
+  $("lv-name").style.color = cpuLv >= 4 ? "#ff7a5a" : "#ffd75e";
+  $("lv-desc").textContent = CPU_LV[cpuLv].d + (mode === "road" ? "(乱闘ロードでは1戦ごとに強くなっていく基準)" : "");
+}
 $("sel-stage").onclick = () => { stageIdx = (stageIdx + 1) % STAGES.length; updStageBtn(); };
 function updStageBtn() { $("sel-stage").textContent = "🏟 " + STAGES[stageIdx].name; }
 $("sel-random").onclick = () => { selKey = CHAR_KEYS[Math.floor(Math.random() * CHAR_KEYS.length)]; renderRoster(); renderDetail(); };
@@ -2176,13 +2306,15 @@ $("sel-go").onclick = () => {
   myChar = selKey;
   if (mode === "road") { startRoad(); return; }
   p2Char = CHAR_KEYS[Math.floor(Math.random() * CHAR_KEYS.length)];
-  startMatch(myChar, p2Char, { lv: 3 });
+  startMatch(myChar, p2Char, { lv: cpuLv });
 };
 function openSelect() {
   $("sel-title").textContent = mode === "2p" ? "1P のキャラを選べ" : mode === "road" ? "乱闘ロードの相棒を選べ" : "キャラを選べ";
   $("road-strip").innerHTML = "";
   $("sel-stage").style.display = mode === "road" ? "none" : "";
+  $("lv-box").style.display = mode === "2p" ? "none" : "";
   updStageBtn();
+  renderLv();
   renderRoster(); renderDetail();
   show("select-screen");
 }
@@ -2199,9 +2331,10 @@ function startRoad() {
 function nextRoadMatch() {
   const foe = roadOrder[roadIdx];
   stageIdx = roadIdx % STAGES.length;
-  const lv = clamp(1 + Math.floor(roadIdx * .55), 1, 5);
+  const base = cpuLv - 2;   // 「ふつう」を選ぶと 1→5 の順当な上がり方になる
+  const lv = clamp(base + Math.round(roadIdx * .55), 1, 5);
   const isFinal = roadIdx === roadOrder.length - 1;
-  startMatch(myChar, foe, { lv: isFinal ? 5 : lv, s1: 3, s2: isFinal ? 3 : 2, time: 120 });
+  startMatch(myChar, foe, { lv: isFinal ? clamp(cpuLv + 2, 3, 5) : lv, s1: 3, s2: isFinal ? 3 : 2, time: 120 });
   setTimeout(() => {
     if (!running) return;
     popup(0, -300, `STAGE ${roadIdx + 1} / ${roadOrder.length}`, "#ffd75e", true);

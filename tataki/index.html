@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>しげる叩き【もぐらたたき風・科学的根拠0人】</title>
 <meta name="description" content="おにぎり泥棒しげるを叩け。マスクしげるを叩くと誠に遺憾。60秒の国益をかけた戦い。">
 <meta property="og:title" content="🔨 しげる叩き【もぐらたたき風】">
@@ -172,6 +172,50 @@
   .result-btn.primary { background: linear-gradient(135deg, #e63946, #b5121b); box-shadow: 0 4px 0 #7a1220; }
   .result-btn.share-x { background: #000; border: 1px solid #444; }
 </style>
+<!-- nozoom-guard -->
+<style>
+  /* iOS Safariは祖先要素の touch-action を無視してダブルタップ拡大を起こすことがあるため、
+     全要素に個別指定する(ドラッグ面の touch-action:none は詳細度で勝つので生きたまま) */
+  *, *::before, *::after { touch-action: manipulation; }
+</style>
+<script>
+/* ================================================================
+   勝手に画面が拡大されるのを防ぐ + 拡大されてしまったら元に戻す
+   ・ダブルタップ拡大 → touch-action と dblclick で抑止
+   ・ピンチ拡大 → Safari独自の gesture イベントを抑止
+   ・それでも拡大された場合 → visualViewport を監視して倍率を戻す
+================================================================ */
+(function () {
+  const VP = "width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover";
+  const meta = document.querySelector('meta[name=viewport]');
+  const stop = e => { if (e.cancelable) e.preventDefault(); };
+  ["gesturestart", "gesturechange", "gestureend"].forEach(t =>
+    document.addEventListener(t, stop, { passive: false }));
+  document.addEventListener("dblclick", stop, { passive: false });
+  let lastReset = 0;
+  function resetZoom() {
+    const now = Date.now();
+    if (now - lastReset < 700 || !meta) return;
+    lastReset = now;
+    // 一度別の指定にしてから戻すと Safari が倍率を作り直す
+    meta.setAttribute("content", "width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no");
+    setTimeout(() => {
+      meta.setAttribute("content", VP);
+      try { window.scrollTo(0, 0); } catch (e) {}
+    }, 50);
+  }
+  window.resetZoom = resetZoom;
+
+  const vv = window.visualViewport;
+  if (vv) {
+    const check = () => { if (vv.scale > 1.02) resetZoom(); };
+    vv.addEventListener("resize", check);
+    vv.addEventListener("scroll", check);
+  }
+  window.addEventListener("orientationchange", () => setTimeout(resetZoom, 250));
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) resetZoom(); });
+})();
+</script>
 </head>
 <body>
 
@@ -696,7 +740,8 @@ window.RANK = (function () {
     onigiri:   { label: "🍙 しげるのおにぎり", unit: "点" },
     tataki:    { label: "🔨 しげる叩き",      unit: "点" },
     puyoshige: { label: "🎰 CRしげさん",      unit: "点" },
-    duel:      { label: "⚔️ しげる決闘",      unit: "与ダメ" }
+    duel:      { label: "⚔️ しげる決闘",      unit: "与ダメ" },
+    smash:     { label: "💥 しげる大乱闘",  unit: "点" }
   };
   const NICK_KEY = "shige_nick";
   const lsKey = g => "shige_rank_" + g;
