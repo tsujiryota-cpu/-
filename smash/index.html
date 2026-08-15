@@ -225,11 +225,11 @@
 </style>
 <!-- nozoom-guard -->
 <style>
-  /* 指で直接さわる面はダブルタップもピンチも完全に殺す */
-  #stage-wrap, #cv, #pads, #stick-zone, #btn-zone, #stick-zone2, #btn-zone2, .gb, #stick, #stick2 { touch-action: none; }
+  /* 指で直接さわる面(と、その中の子要素すべて)はダブルタップもピンチも殺す */
+  #stage-wrap, #cv, #pads, #stick-zone, #btn-zone, #stick-zone2, #btn-zone2, .gb, #stick, #stick2, #stage-wrap *, #cv *, #pads *, #stick-zone *, #btn-zone *, #stick-zone2 *, #btn-zone2 *, .gb *, #stick *, #stick2 * { touch-action: none; }
 </style>
 <style>
-  /* iOS Safariは祖先要素の touch-action を見落としてダブルタップ拡大を起こすので全要素に個別指定 */
+  /* iOS Safariは祖先要素の touch-action を見落とすので全要素に個別指定 */
   *, *::before, *::after { touch-action: manipulation; }
   /* 拡大されてしまった時の脱出ボタン(可視領域の左上に貼り付く) */
   #zoom-esc {
@@ -245,43 +245,54 @@
 /* ================================================================
    勝手に画面が拡大される問題への対策(全作品共通)
 
-   iOS Safari は user-scalable=no / maximum-scale を無視する。さらに
+   iOS Safari / iOS Chrome(中身はWebKit)は user-scalable=no も
+   maximum-scale も無視する。そのうえで
    ・連打が「ダブルタップ拡大」と誤認される
-   ・スティックとボタンを別々の指で押すと「ピンチ」と誤認される
-   という2つの経路で拡大が起きる。
-   拡大したまま maximum-scale=1 を指定していると縮小もできず詰むので、
-   (1) 拡大させない (2) それでも拡大したら必ず戻せる、の二段構えにする。
+   ・別々の指でボタンを押すと「ピンチ」と誤認される
+   の2経路で拡大が起きる。
+   (1) 拡大させない (2) それでも拡大したら必ず戻せる、の二段構え。
+
+   ※ 判定は e.target そのものではなく祖先まで遡って見る。
+      ボタンの中のラベル(<small>など)を叩くと e.target が子要素になり、
+      その子要素の touch-action だけ見ていると素通りしてしまうため。
 ================================================================ */
 (function () {
-  const VP_FREE = "width=device-width, initial-scale=1, viewport-fit=cover";   // 通常時(ピンチで戻せるよう拡大は許可しておく)
+  const VP_FREE = "width=device-width, initial-scale=1, viewport-fit=cover";   // 通常時(最後の手段としてピンチでの縮小は残す)
   const VP_LOCK = "width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no";
   const meta = document.querySelector('meta[name=viewport]');
   const stop = e => { if (e.cancelable) e.preventDefault(); };
 
-  /* --- ピンチ(Safari独自のgestureイベント) --- */
+  /* 触れた場所が「ゲームの操作面(pointerdownで動く面)」かどうかを祖先まで遡って判定。
+     clickで動くUIが途中にあれば対象外にする(preventDefaultするとclickが消えるため) */
+  function isSurface(el) {
+    for (let n = el, i = 0; n && n.nodeType === 1 && i < 10; n = n.parentElement, i++) {
+      if (n.onclick) return false;
+      const tag = n.tagName;
+      if (tag === "A" || tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA" || tag === "LABEL") return false;
+      if (n.id === "zoom-esc") return false;
+      let ta = "";
+      try { ta = getComputedStyle(n).touchAction; } catch (err) { return false; }
+      if (ta === "none") return true;
+      if (n === document.body) return false;
+    }
+    return false;
+  }
+
+  /* --- ダブルタップ拡大: 操作面のタップはブラウザに渡さない --- */
+  document.addEventListener("touchend", e => {
+    if (isSurface(e.target)) stop(e);
+  }, { passive: false });
+  /* --- ピンチ: 操作面で2本目の指が触れた瞬間に握りつぶす(pointerイベントは先に発火済み) --- */
+  document.addEventListener("touchstart", e => {
+    if (e.touches && e.touches.length > 1 && isSurface(e.target)) stop(e);
+  }, { passive: false });
+  /* --- ピンチ: Safari独自のgestureイベント / touchmoveのscale --- */
   ["gesturestart", "gesturechange", "gestureend"].forEach(t =>
     document.addEventListener(t, stop, { passive: false }));
-  /* --- ピンチ(touchmoveのscaleで検知。1本指の操作は素通り) --- */
   document.addEventListener("touchmove", e => {
     if (typeof e.scale === "number" && e.scale !== 1) stop(e);
   }, { passive: false });
   document.addEventListener("dblclick", stop, { passive: false });
-
-  /* --- ダブルタップ拡大 ---
-     touch-action:none の面(=ゲームの操作面。clickではなくpointerdownで動く)に限り、
-     連続タップの2発目をキャンセルする。メニューのボタンはclickが必要なので触らない。 */
-  let lastT = 0, lastX = 0, lastY = 0;
-  document.addEventListener("touchend", e => {
-    const t = e.target;
-    if (!t || t.nodeType !== 1) return;
-    let ta = "";
-    try { ta = getComputedStyle(t).touchAction; } catch (err) { return; }
-    if (ta !== "none") return;
-    const p = e.changedTouches && e.changedTouches[0];
-    const now = Date.now(), x = p ? p.clientX : 0, y = p ? p.clientY : 0;
-    if (now - lastT < 330 && Math.abs(x - lastX) < 44 && Math.abs(y - lastY) < 44) stop(e);
-    lastT = now; lastX = x; lastY = y;
-  }, { passive: false });
 
   /* --- 拡大されてしまった時に元へ戻す --- */
   const vv = window.visualViewport;
@@ -290,7 +301,7 @@
     const now = Date.now();
     if (now - lastReset < 700 || !meta) return;
     lastReset = now;
-    // 現在の倍率より小さい maximum-scale を一瞬はさむと Safari が倍率を1に切り詰める
+    // 現在の倍率より小さい maximum-scale を一瞬はさむと倍率が1に切り詰められる
     meta.setAttribute("content", VP_LOCK);
     setTimeout(() => {
       meta.setAttribute("content", VP_FREE);
@@ -298,6 +309,17 @@
     }, 320);
   }
   window.resetZoom = function () { fails = 0; lastReset = 0; resetZoom(); };
+  /* 症状の切り分け用: 本人に見せてもらう数値 */
+  window.__zoomInfo = function () {
+    return {
+      scale: vv ? +vv.scale.toFixed(3) : null,
+      vw: vv ? Math.round(vv.width) : null,
+      iw: window.innerWidth,
+      ow: window.outerWidth,
+      dpr: window.devicePixelRatio,
+      vp: meta ? meta.content : "-"
+    };
+  };
 
   function ensureBtn() {
     if (escBtn) return escBtn;
@@ -315,6 +337,7 @@
     if (zoomed) {
       const b = ensureBtn();
       b.classList.add("show");
+      b.textContent = "🔍 表示を戻す (" + vv.scale.toFixed(2) + "倍)";
       b.style.transform = `translate(${vv.offsetLeft}px, ${vv.offsetTop}px) scale(${1 / vv.scale})`;
       if (fails < 4) { fails++; resetZoom(); }   // 数回試してだめならボタンに任せる
     } else {
@@ -348,7 +371,7 @@
   </div>
   <p class="tl-sub" style="font-size:.68rem">PCならキーボードでも遊べる(←→↑↓ / Z=攻撃 / X=必殺 / C=ガード / Space=ジャンプ)</p>
   <a class="home-link" href="../games/">← 暇かよ働けゲームセンターへ</a>
-  <p class="tl-sub" style="font-size:.62rem;opacity:.55">build 2026.08.15-504aee9 / 画面が拡大されたら左上の「🔍 表示を戻す」</p>
+  <p class="tl-sub" id="diag" style="font-size:.62rem;opacity:.6;line-height:1.6">build 2026.08.15-0815-0348</p>
 </div>
 
 <!-- ================= キャラ選択 ================= -->
@@ -958,7 +981,7 @@ function knockback(atkF, tgt, m, mulPow) {
   const heavy = dmg >= 13, mid = dmg >= 7;
   hitstop = Math.max(hitstop, Math.round(4 + dmg * .75));
   doShake(clamp(3 + dmg * .9, 3, 26));
-  zoomPunch = Math.max(zoomPunch, clamp(dmg * .009, .02, .3));
+  zoomPunch = Math.max(zoomPunch, clamp(dmg * .007, .02, .16));
   lastHit = { x: hx, y: hy, pow: clamp(dmg / 16, .4, 1.8), life: 1 };
   spark(hx, hy, heavy ? 26 : mid ? 16 : 9, heavy ? "#fff2b0" : "#ffd75e", heavy ? 1.6 : 1);
   ring(hx, hy, heavy ? "#ffedb0" : "#ffd75e", heavy ? 1.5 : 1);
@@ -1545,11 +1568,12 @@ function stepCamera() {
   const a = F[0], b = F[1];
   const xs = [a.x, b.x], ys = [a.y - FH * .5, b.y - FH * .5];
   const mx = (xs[0] + xs[1]) / 2, my = (ys[0] + ys[1]) / 2;
-  const spanX = Math.abs(xs[0] - xs[1]) + 250, spanY = Math.abs(ys[0] - ys[1]) + 190;
+  const spanX = Math.abs(xs[0] - xs[1]) + 330, spanY = Math.abs(ys[0] - ys[1]) + 250;
   const zx = CW / spanX, zy = CH / spanY;
-  cam.tz = clamp(Math.min(zx, zy), .5, 2.3);
+  // 上限を1.55に抑える。近距離で寄りすぎると「画面が勝手に拡大された」ように見えるため
+  cam.tz = clamp(Math.min(zx, zy), .5, 1.55);
   cam.zb += (cam.tz - cam.zb) * .075;
-  zoomPunch *= .82;
+  zoomPunch *= .76;
   if (zoomPunch < .002) zoomPunch = 0;
   cam.z = cam.zb * (1 + zoomPunch);
   const tx = clamp(mx, -430, 430), ty = clamp(my, -400, 150);
@@ -2409,6 +2433,22 @@ function nextRoadMatch() {
 $("go-vs").onclick = () => { ensureCtx(); mode = "vs"; selFor = "p1"; stageIdx = Math.floor(Math.random() * STAGES.length); openSelect(); };
 $("go-road").onclick = () => { ensureCtx(); mode = "road"; selFor = "p1"; openSelect(); };
 $("go-2p").onclick = () => { ensureCtx(); mode = "2p"; selFor = "p1"; stageIdx = Math.floor(Math.random() * STAGES.length); openSelect(); };
+/* 症状の切り分け用: 実際に画面倍率が変わっているのかを本人が確認できるようにする */
+(function diagLoop() {
+  const el = $("diag");
+  if (!el) return;
+  const base = el.textContent;
+  setInterval(() => {
+    const i = window.__zoomInfo ? window.__zoomInfo() : null;
+    if (!i) return;
+    const z = i.scale;
+    el.innerHTML = base + "<br>表示倍率 " + (z === null ? "?" : z.toFixed(2)) +
+      " / 幅 " + i.iw + "px / dpr " + i.dpr +
+      (z !== null && z > 1.02 ? ' <b style="color:#ff5a5a">← 拡大中(左上のボタンで戻せます)</b>' : "");
+    el.style.opacity = (z !== null && z > 1.02) ? 1 : .6;
+  }, 500);
+})();
+
 (function initTitle() {
   const w = $("tl-faces");
   CHAR_KEYS.forEach(k => { const im = document.createElement("img"); im.src = IMG[CHARS[k].img]; im.alt = CHARS[k].name; w.appendChild(im); });

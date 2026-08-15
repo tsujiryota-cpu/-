@@ -167,11 +167,11 @@
 </style>
 <!-- nozoom-guard -->
 <style>
-  /* 指で直接さわる面はダブルタップもピンチも完全に殺す */
-  #finger-screen, #finger-area, .fing { touch-action: none; }
+  /* 指で直接さわる面(と、その中の子要素すべて)はダブルタップもピンチも殺す */
+  #finger-screen, #finger-area, .fing, #finger-screen *, #finger-area *, .fing * { touch-action: none; }
 </style>
 <style>
-  /* iOS Safariは祖先要素の touch-action を見落としてダブルタップ拡大を起こすので全要素に個別指定 */
+  /* iOS Safariは祖先要素の touch-action を見落とすので全要素に個別指定 */
   *, *::before, *::after { touch-action: manipulation; }
   /* 拡大されてしまった時の脱出ボタン(可視領域の左上に貼り付く) */
   #zoom-esc {
@@ -187,43 +187,54 @@
 /* ================================================================
    勝手に画面が拡大される問題への対策(全作品共通)
 
-   iOS Safari は user-scalable=no / maximum-scale を無視する。さらに
+   iOS Safari / iOS Chrome(中身はWebKit)は user-scalable=no も
+   maximum-scale も無視する。そのうえで
    ・連打が「ダブルタップ拡大」と誤認される
-   ・スティックとボタンを別々の指で押すと「ピンチ」と誤認される
-   という2つの経路で拡大が起きる。
-   拡大したまま maximum-scale=1 を指定していると縮小もできず詰むので、
-   (1) 拡大させない (2) それでも拡大したら必ず戻せる、の二段構えにする。
+   ・別々の指でボタンを押すと「ピンチ」と誤認される
+   の2経路で拡大が起きる。
+   (1) 拡大させない (2) それでも拡大したら必ず戻せる、の二段構え。
+
+   ※ 判定は e.target そのものではなく祖先まで遡って見る。
+      ボタンの中のラベル(<small>など)を叩くと e.target が子要素になり、
+      その子要素の touch-action だけ見ていると素通りしてしまうため。
 ================================================================ */
 (function () {
-  const VP_FREE = "width=device-width, initial-scale=1, viewport-fit=cover";   // 通常時(ピンチで戻せるよう拡大は許可しておく)
+  const VP_FREE = "width=device-width, initial-scale=1, viewport-fit=cover";   // 通常時(最後の手段としてピンチでの縮小は残す)
   const VP_LOCK = "width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no";
   const meta = document.querySelector('meta[name=viewport]');
   const stop = e => { if (e.cancelable) e.preventDefault(); };
 
-  /* --- ピンチ(Safari独自のgestureイベント) --- */
+  /* 触れた場所が「ゲームの操作面(pointerdownで動く面)」かどうかを祖先まで遡って判定。
+     clickで動くUIが途中にあれば対象外にする(preventDefaultするとclickが消えるため) */
+  function isSurface(el) {
+    for (let n = el, i = 0; n && n.nodeType === 1 && i < 10; n = n.parentElement, i++) {
+      if (n.onclick) return false;
+      const tag = n.tagName;
+      if (tag === "A" || tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA" || tag === "LABEL") return false;
+      if (n.id === "zoom-esc") return false;
+      let ta = "";
+      try { ta = getComputedStyle(n).touchAction; } catch (err) { return false; }
+      if (ta === "none") return true;
+      if (n === document.body) return false;
+    }
+    return false;
+  }
+
+  /* --- ダブルタップ拡大: 操作面のタップはブラウザに渡さない --- */
+  document.addEventListener("touchend", e => {
+    if (isSurface(e.target)) stop(e);
+  }, { passive: false });
+  /* --- ピンチ: 操作面で2本目の指が触れた瞬間に握りつぶす(pointerイベントは先に発火済み) --- */
+  document.addEventListener("touchstart", e => {
+    if (e.touches && e.touches.length > 1 && isSurface(e.target)) stop(e);
+  }, { passive: false });
+  /* --- ピンチ: Safari独自のgestureイベント / touchmoveのscale --- */
   ["gesturestart", "gesturechange", "gestureend"].forEach(t =>
     document.addEventListener(t, stop, { passive: false }));
-  /* --- ピンチ(touchmoveのscaleで検知。1本指の操作は素通り) --- */
   document.addEventListener("touchmove", e => {
     if (typeof e.scale === "number" && e.scale !== 1) stop(e);
   }, { passive: false });
   document.addEventListener("dblclick", stop, { passive: false });
-
-  /* --- ダブルタップ拡大 ---
-     touch-action:none の面(=ゲームの操作面。clickではなくpointerdownで動く)に限り、
-     連続タップの2発目をキャンセルする。メニューのボタンはclickが必要なので触らない。 */
-  let lastT = 0, lastX = 0, lastY = 0;
-  document.addEventListener("touchend", e => {
-    const t = e.target;
-    if (!t || t.nodeType !== 1) return;
-    let ta = "";
-    try { ta = getComputedStyle(t).touchAction; } catch (err) { return; }
-    if (ta !== "none") return;
-    const p = e.changedTouches && e.changedTouches[0];
-    const now = Date.now(), x = p ? p.clientX : 0, y = p ? p.clientY : 0;
-    if (now - lastT < 330 && Math.abs(x - lastX) < 44 && Math.abs(y - lastY) < 44) stop(e);
-    lastT = now; lastX = x; lastY = y;
-  }, { passive: false });
 
   /* --- 拡大されてしまった時に元へ戻す --- */
   const vv = window.visualViewport;
@@ -232,7 +243,7 @@
     const now = Date.now();
     if (now - lastReset < 700 || !meta) return;
     lastReset = now;
-    // 現在の倍率より小さい maximum-scale を一瞬はさむと Safari が倍率を1に切り詰める
+    // 現在の倍率より小さい maximum-scale を一瞬はさむと倍率が1に切り詰められる
     meta.setAttribute("content", VP_LOCK);
     setTimeout(() => {
       meta.setAttribute("content", VP_FREE);
@@ -240,6 +251,17 @@
     }, 320);
   }
   window.resetZoom = function () { fails = 0; lastReset = 0; resetZoom(); };
+  /* 症状の切り分け用: 本人に見せてもらう数値 */
+  window.__zoomInfo = function () {
+    return {
+      scale: vv ? +vv.scale.toFixed(3) : null,
+      vw: vv ? Math.round(vv.width) : null,
+      iw: window.innerWidth,
+      ow: window.outerWidth,
+      dpr: window.devicePixelRatio,
+      vp: meta ? meta.content : "-"
+    };
+  };
 
   function ensureBtn() {
     if (escBtn) return escBtn;
@@ -257,6 +279,7 @@
     if (zoomed) {
       const b = ensureBtn();
       b.classList.add("show");
+      b.textContent = "🔍 表示を戻す (" + vv.scale.toFixed(2) + "倍)";
       b.style.transform = `translate(${vv.offsetLeft}px, ${vv.offsetTop}px) scale(${1 / vv.scale})`;
       if (fails < 4) { fails++; resetZoom(); }   // 数回試してだめならボタンに任せる
     } else {
