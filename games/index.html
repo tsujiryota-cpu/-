@@ -97,7 +97,7 @@
 </style>
 <!-- nozoom-guard -->
 <style>
-  /* iOS Safariの「ダブルタップで拡大されて戻せない」を防ぐ(ピンチ拡大は残す) */
+  /* iOS Safariの「ダブルタップで拡大されて戻せない」を防ぐ(縦長の読み物なのでピンチ拡大は残す) */
   *, *::before, *::after { touch-action: manipulation; }
 </style>
 <script>document.addEventListener("dblclick", e => { if (e.cancelable) e.preventDefault(); }, { passive: false });</script>

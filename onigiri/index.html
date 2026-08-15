@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>しげるのおにぎり【太鼓の達人風・科学的根拠0人】</title>
 <meta name="description" content="🍙が来たら左、😷が来たら右。しげると一緒にリズムに乗れ。なめられてたまるか。">
 <meta property="og:title" content="🍙 しげるのおにぎり【太鼓の達人風】">
@@ -163,46 +163,109 @@
 </style>
 <!-- nozoom-guard -->
 <style>
-  /* iOS Safariは祖先要素の touch-action を無視してダブルタップ拡大を起こすことがあるため、
-     全要素に個別指定する(ドラッグ面の touch-action:none は詳細度で勝つので生きたまま) */
+  /* 指で直接さわる面はダブルタップもピンチも完全に殺す */
+  #pads, .pad, #lane, canvas { touch-action: none; }
+</style>
+<style>
+  /* iOS Safariは祖先要素の touch-action を見落としてダブルタップ拡大を起こすので全要素に個別指定 */
   *, *::before, *::after { touch-action: manipulation; }
+  /* 拡大されてしまった時の脱出ボタン(可視領域の左上に貼り付く) */
+  #zoom-esc {
+    position: fixed; left: 0; top: 0; z-index: 2147483647; display: none;
+    transform-origin: 0 0; margin: 8px; padding: 11px 16px; border: 2px solid #fff;
+    border-radius: 999px; font-family: inherit; font-size: 15px; font-weight: 900;
+    background: #d51b1b; color: #fff; box-shadow: 0 4px 16px rgba(0,0,0,.6);
+    touch-action: manipulation; white-space: nowrap; line-height: 1;
+  }
+  #zoom-esc.show { display: block; }
 </style>
 <script>
 /* ================================================================
-   勝手に画面が拡大されるのを防ぐ + 拡大されてしまったら元に戻す
-   ・ダブルタップ拡大 → touch-action と dblclick で抑止
-   ・ピンチ拡大 → Safari独自の gesture イベントを抑止
-   ・それでも拡大された場合 → visualViewport を監視して倍率を戻す
+   勝手に画面が拡大される問題への対策(全作品共通)
+
+   iOS Safari は user-scalable=no / maximum-scale を無視する。さらに
+   ・連打が「ダブルタップ拡大」と誤認される
+   ・スティックとボタンを別々の指で押すと「ピンチ」と誤認される
+   という2つの経路で拡大が起きる。
+   拡大したまま maximum-scale=1 を指定していると縮小もできず詰むので、
+   (1) 拡大させない (2) それでも拡大したら必ず戻せる、の二段構えにする。
 ================================================================ */
 (function () {
-  const VP = "width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover";
+  const VP_FREE = "width=device-width, initial-scale=1, viewport-fit=cover";   // 通常時(ピンチで戻せるよう拡大は許可しておく)
+  const VP_LOCK = "width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no";
   const meta = document.querySelector('meta[name=viewport]');
   const stop = e => { if (e.cancelable) e.preventDefault(); };
+
+  /* --- ピンチ(Safari独自のgestureイベント) --- */
   ["gesturestart", "gesturechange", "gestureend"].forEach(t =>
     document.addEventListener(t, stop, { passive: false }));
+  /* --- ピンチ(touchmoveのscaleで検知。1本指の操作は素通り) --- */
+  document.addEventListener("touchmove", e => {
+    if (typeof e.scale === "number" && e.scale !== 1) stop(e);
+  }, { passive: false });
   document.addEventListener("dblclick", stop, { passive: false });
-  let lastReset = 0;
+
+  /* --- ダブルタップ拡大 ---
+     touch-action:none の面(=ゲームの操作面。clickではなくpointerdownで動く)に限り、
+     連続タップの2発目をキャンセルする。メニューのボタンはclickが必要なので触らない。 */
+  let lastT = 0, lastX = 0, lastY = 0;
+  document.addEventListener("touchend", e => {
+    const t = e.target;
+    if (!t || t.nodeType !== 1) return;
+    let ta = "";
+    try { ta = getComputedStyle(t).touchAction; } catch (err) { return; }
+    if (ta !== "none") return;
+    const p = e.changedTouches && e.changedTouches[0];
+    const now = Date.now(), x = p ? p.clientX : 0, y = p ? p.clientY : 0;
+    if (now - lastT < 330 && Math.abs(x - lastX) < 44 && Math.abs(y - lastY) < 44) stop(e);
+    lastT = now; lastX = x; lastY = y;
+  }, { passive: false });
+
+  /* --- 拡大されてしまった時に元へ戻す --- */
+  const vv = window.visualViewport;
+  let lastReset = 0, fails = 0, escBtn = null;
   function resetZoom() {
     const now = Date.now();
     if (now - lastReset < 700 || !meta) return;
     lastReset = now;
-    // 一度別の指定にしてから戻すと Safari が倍率を作り直す
-    meta.setAttribute("content", "width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no");
+    // 現在の倍率より小さい maximum-scale を一瞬はさむと Safari が倍率を1に切り詰める
+    meta.setAttribute("content", VP_LOCK);
     setTimeout(() => {
-      meta.setAttribute("content", VP);
+      meta.setAttribute("content", VP_FREE);
       try { window.scrollTo(0, 0); } catch (e) {}
-    }, 50);
+    }, 320);
   }
-  window.resetZoom = resetZoom;
+  window.resetZoom = function () { fails = 0; lastReset = 0; resetZoom(); };
 
-  const vv = window.visualViewport;
-  if (vv) {
-    const check = () => { if (vv.scale > 1.02) resetZoom(); };
-    vv.addEventListener("resize", check);
-    vv.addEventListener("scroll", check);
+  function ensureBtn() {
+    if (escBtn) return escBtn;
+    escBtn = document.createElement("button");
+    escBtn.id = "zoom-esc";
+    escBtn.type = "button";
+    escBtn.textContent = "🔍 表示を戻す";
+    escBtn.onclick = e => { e.preventDefault(); e.stopPropagation(); window.resetZoom(); };
+    (document.body || document.documentElement).appendChild(escBtn);
+    return escBtn;
   }
-  window.addEventListener("orientationchange", () => setTimeout(resetZoom, 250));
-  document.addEventListener("visibilitychange", () => { if (!document.hidden) resetZoom(); });
+  function sync() {
+    if (!vv) return;
+    const zoomed = vv.scale > 1.02;
+    if (zoomed) {
+      const b = ensureBtn();
+      b.classList.add("show");
+      b.style.transform = `translate(${vv.offsetLeft}px, ${vv.offsetTop}px) scale(${1 / vv.scale})`;
+      if (fails < 4) { fails++; resetZoom(); }   // 数回試してだめならボタンに任せる
+    } else {
+      fails = 0;
+      if (escBtn) escBtn.classList.remove("show");
+    }
+  }
+  if (vv) {
+    vv.addEventListener("resize", sync);
+    vv.addEventListener("scroll", sync);
+  }
+  window.addEventListener("orientationchange", () => setTimeout(() => { fails = 0; sync(); }, 250));
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) { fails = 0; sync(); } });
 })();
 </script>
 </head>
