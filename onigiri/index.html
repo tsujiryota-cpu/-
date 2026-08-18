@@ -1301,12 +1301,19 @@ document.addEventListener("visibilitychange", () => {
 <script>
 /* ================================================================
    みんなのランキング(全作品共通モジュール)
-   ・端末内(localStorage)には必ず記録される
-   ・RANK_ENDPOINT が設定されていれば共有ランキングにも読み書きする
-     (未設定/通信失敗時は自動で端末内モードにフォールバック)
+
+   ・端末内(localStorage)には必ず記録が残る
+   ・共有ストアは「1つのJSONドキュメントに全ゲーム分」を GET/PUT するだけ
+     { onigiri:[...], tataki:[...], puyoshige:[...], duel:[...], smash:[...] }
+     → jsonblob / Firebase RTDB など、認証なしでGET+PUTできる先ならそのまま動く
+   ・保存先は複数指定でき、GETは繋がった先から、PUTは全部に書く(二重化)
+   ・共有側が失効して空になっても、誰かがランキングを開いた時点で
+     端末内の控えを自動で書き戻す(自己修復)
+   ・保存先は端末側から差し替えられる(shige_rank_ep)。再ビルド不要
 ================================================================ */
 window.RANK = (function () {
-  const EP = "https://jsonblob.com/api/jsonBlob/019ff00a-97ac-76c4-9775-c5416eaa3efe";
+  const EP_BUILTIN = ["https://jsonblob.com/api/jsonBlob/019ff00a-97ac-76c4-9775-c5416eaa3efe"];
+  const EP_KEY = "shige_rank_ep";
   const GAMES = {
     onigiri:   { label: "🍙 しげるのおにぎり", unit: "点" },
     tataki:    { label: "🔨 しげる叩き",      unit: "点" },
@@ -1314,16 +1321,42 @@ window.RANK = (function () {
     duel:      { label: "⚔️ しげる決闘",      unit: "与ダメ" },
     smash:     { label: "💥 しげる大乱闘",  unit: "点" }
   };
+  const GK = Object.keys(GAMES);
   const NICK_KEY = "shige_nick";
+  const ALL_KEY = "shige_rank_all";        // 全ゲーム分の控え(共有側の復元用)
   const lsKey = g => "shige_rank_" + g;
-  let online = null;   // null=未接続, true=共有OK, false=端末内のみ
+  let online = null;      // null=未接続, true=共有OK, false=端末内のみ
+  let activeEp = "";      // 実際に繋がった保存先
 
   function getNick() { try { return localStorage.getItem(NICK_KEY) || ""; } catch (e) { return ""; } }
   function setNick(v) { try { localStorage.setItem(NICK_KEY, v); } catch (e) {} }
   function localGet(g) { try { return JSON.parse(localStorage.getItem(lsKey(g))) || []; } catch (e) { return []; } }
   function localPut(g, a) { try { localStorage.setItem(lsKey(g), JSON.stringify(a)); } catch (e) {} }
+  function allLocal() { try { return JSON.parse(localStorage.getItem(ALL_KEY)) || {}; } catch (e) { return {}; } }
 
-  const norm = a => (Array.isArray(a) ? a : [])
+  /* 保存先の一覧。端末側で設定したものを優先する */
+  function epUser() { try { return localStorage.getItem(EP_KEY) || ""; } catch (e) { return ""; } }
+  function epSet(v) {
+    try { v ? localStorage.setItem(EP_KEY, v) : localStorage.removeItem(EP_KEY); } catch (e) {}
+  }
+  function epList() {
+    const out = [];
+    const u = epUser();
+    if (/^https?:\/\//.test(u)) out.push(u);
+    (Array.isArray(EP_BUILTIN) ? EP_BUILTIN : [EP_BUILTIN]).forEach(e => {
+      if (typeof e === "string" && /^https?:\/\//.test(e) && out.indexOf(e) < 0) out.push(e);
+    });
+    return out;
+  }
+  const isTemporary = ep => /jsonblob\.com/.test(ep);
+
+  /* Firebase RTDB は配列を {"0":…,"1":…} の形で返すことがあるので配列に直す */
+  function fixList(v) {
+    if (Array.isArray(v)) return v;
+    if (v && typeof v === "object") return Object.keys(v).sort((a, b) => (+a) - (+b)).map(k => v[k]);
+    return [];
+  }
+  const norm = a => fixList(a)
     .filter(x => x && typeof x.s === "number" && isFinite(x.s))
     .map(x => ({ n: String(x.n || "名無しの茂").slice(0, 12), s: Math.round(x.s), e: String(x.e || "").slice(0, 24), t: x.t || 0 }))
     .sort((x, y) => y.s - x.s).slice(0, 50);
@@ -1336,11 +1369,8 @@ window.RANK = (function () {
     return norm(out);
   }
 
-  /* 共有ストアは「1つのJSONドキュメントに全ゲーム分」を入れる方式
-     { onigiri:[...], tataki:[...], puyoshige:[...], duel:[...] }
-     → jsonblob / Firebase RTDB など GET+PUT だけで動く先に対応できる */
-  async function rawReq(method, body) {
-    if (!EP) { online = false; return null; }
+  /* GETは繋がった先から1つ、PUTは全部に書く(片方が失効しても残る) */
+  async function reqOne(ep, method, body) {
     const ctl = new AbortController();
     const timer = setTimeout(() => ctl.abort(), 8000);
     try {
@@ -1349,32 +1379,80 @@ window.RANK = (function () {
         opt.headers = { "Content-Type": "application/json" };
         opt.body = JSON.stringify(body);
       }
-      const r = await fetch(EP, opt);
+      const r = await fetch(ep, opt);
       clearTimeout(timer);
-      if (!r.ok) { online = false; return null; }
-      online = true;
-      if (method === "GET") {
-        const t = (await r.text()).trim();
-        let j = {};
-        try { j = t ? JSON.parse(t) : {}; } catch (e) { j = {}; }
-        return (j && typeof j === "object" && !Array.isArray(j)) ? j : {};
-      }
-      return true;
-    } catch (e) { clearTimeout(timer); online = false; return null; }
+      if (!r.ok) return null;
+      if (method !== "GET") return true;
+      const t = (await r.text()).trim();
+      let j = null;
+      try { j = t && t !== "null" ? JSON.parse(t) : {}; } catch (e) { j = {}; }
+      return (j && typeof j === "object" && !Array.isArray(j)) ? j : {};
+    } catch (e) { clearTimeout(timer); return null; }
   }
+  async function rawReq(method, body) {
+    const eps = epList();
+    if (!eps.length) { online = false; activeEp = ""; return null; }
+    if (method === "GET") {
+      for (const ep of eps) {
+        const r = await reqOne(ep, "GET");
+        if (r) { online = true; activeEp = ep; return r; }
+      }
+      online = false; activeEp = "";
+      return null;
+    }
+    const rs = await Promise.all(eps.map(ep => reqOne(ep, method, body)));
+    const ok = rs.some(Boolean);
+    online = ok;
+    return ok || null;
+  }
+
+  /* 端末内の控えと共有側を突き合わせて、全ゲーム分の最新をつくる */
+  function mergeAll(remote) {
+    const loc = allLocal(), out = {};
+    GK.forEach(g => {
+      const m = merge(merge(remote ? remote[g] : [], loc[g] || []), localGet(g));
+      if (m.length) out[g] = m;
+    });
+    return out;
+  }
+  function saveAll(all) {
+    try { localStorage.setItem(ALL_KEY, JSON.stringify(all)); } catch (e) {}
+    GK.forEach(g => { if (all[g]) localPut(g, all[g]); });
+  }
+  /* 共有側に足りない記録があるか(=書き戻して復活させるべきか) */
+  function needsHeal(remote, all) {
+    return GK.some(g => (all[g] || []).length > norm(remote ? remote[g] : []).length);
+  }
+
+  let healed = 0;
   async function list(g) {
-    const all = await rawReq("GET");
-    if (all) { const m = merge(all[g] || [], localGet(g)); localPut(g, m); return m; }
-    return norm(localGet(g));
+    const remote = await rawReq("GET");
+    const all = mergeAll(remote || {});
+    saveAll(all);
+    if (remote && needsHeal(remote, all)) { healed++; rawReq("PUT", all); }
+    return all[g] || [];
   }
   async function submit(g, nick, score, extra) {
     if (nick) setNick(nick);   // 次回の入力欄に引き継ぐ
     const entry = { n: (nick || "名無しの茂").slice(0, 12), s: Math.round(score), e: (extra || "").slice(0, 24), t: Date.now() };
-    const all = (await rawReq("GET")) || {};
-    const merged = merge([...(all[g] || []), entry], localGet(g));
-    localPut(g, merged);
-    if (EP) { all[g] = merged; await rawReq("PUT", all); }
-    return { list: merged, entry };
+    const remote = await rawReq("GET");
+    const all = mergeAll(remote || {});
+    all[g] = merge([...(all[g] || []), entry], []);
+    saveAll(all);
+    await rawReq("PUT", all);
+    return { list: all[g], entry };
+  }
+  /* バックアップ/復元 */
+  function exportAll() { return JSON.stringify(mergeAll({}), null, 1); }
+  async function importAll(text) {
+    let j = null;
+    try { j = JSON.parse(text); } catch (e) { return "JSONとして読めませんでした"; }
+    if (!j || typeof j !== "object") return "中身がJSONのオブジェクトではありません";
+    const all = mergeAll(j);
+    saveAll(all);
+    await rawReq("PUT", all);
+    const n = GK.reduce((a, g) => a + (all[g] || []).length, 0);
+    return "復元しました(合計 " + n + " 件)";
   }
 
   /* ---------------- UI ---------------- */
@@ -1415,7 +1493,25 @@ window.RANK = (function () {
   #rank-empty { text-align: center; color: #8f83b8; font-size: .8rem; padding: 16px 0; }
   #rank-status { font-size: .66rem; color: #8f83b8; text-align: center; margin-top: 8px; }
   #rank-close { display: block; width: 100%; margin-top: 10px; font-size: .95rem; font-weight: 800;
-    padding: 11px; border: none; border-radius: 22px; background: linear-gradient(180deg,#6a5acd,#483d8b); color: #fff; }`;
+    padding: 11px; border: none; border-radius: 22px; background: linear-gradient(180deg,#6a5acd,#483d8b); color: #fff; }
+  #rank-warn { font-size: .66rem; color: #ffb0b0; background: rgba(255,60,60,.14); border-radius: 7px;
+    padding: 6px 8px; margin-top: 6px; line-height: 1.6; display: none; }
+  #rank-warn.show { display: block; }
+  #rank-gear { display: block; width: 100%; margin-top: 6px; font-size: .7rem; padding: 7px;
+    border: 1px solid #4a3a75; border-radius: 8px; background: #1b1435; color: #cabfe6; }
+  #rank-cfg { display: none; margin-top: 7px; border-top: 1px solid rgba(255,255,255,.12); padding-top: 8px; }
+  #rank-cfg.show { display: block; }
+  #rank-cfg p { font-size: .64rem; color: #9c8fc4; line-height: 1.7; margin-bottom: 5px; }
+  #rank-cfg .ep { font-size: .6rem; color: #8f83b8; word-break: break-all; background: rgba(0,0,0,.3);
+    border-radius: 5px; padding: 4px 6px; margin-bottom: 6px; }
+  #rank-cfg input, #rank-cfg textarea { width: 100%; font-size: .74rem; padding: 7px; border-radius: 7px;
+    border: 1px solid #5c4a8a; background: #100c20; color: #fff; font-family: inherit; margin-bottom: 5px; }
+  #rank-cfg textarea { height: 62px; resize: vertical; font-family: "Courier New",monospace; font-size: .62rem; }
+  .rank-btn-row { display: flex; gap: 5px; margin-bottom: 6px; }
+  .rank-btn-row button { flex: 1; font-size: .7rem; font-weight: 700; padding: 8px 4px; border: none;
+    border-radius: 7px; background: #4a3a90; color: #fff; font-family: inherit; }
+  .rank-btn-row button.warn { background: #8a3a3a; }
+  #rank-cfg-msg { font-size: .66rem; color: #ffd75e; min-height: 1.4em; line-height: 1.5; }`;
 
   let cur = null;   // {game, score, extra}
   let myEntry = null;
@@ -1434,7 +1530,23 @@ window.RANK = (function () {
       '<div id="rank-form"><input id="rank-nick" maxlength="12" placeholder="ニックネーム(12文字まで)">' +
       '<button id="rank-send">登録</button></div>' +
       '<div id="rank-tabs"></div><ol id="rank-list"></ol><div id="rank-empty"></div>' +
-      '<div id="rank-status"></div><button id="rank-close">閉じる</button></div>';
+      '<div id="rank-status"></div><div id="rank-warn"></div>' +
+      '<button id="rank-gear">⚙️ 保存先とバックアップ</button>' +
+      '<div id="rank-cfg">' +
+        '<p>共有ランキングの保存先。<b>jsonblobの匿名保存先は24時間で消えます</b>。' +
+        'Firebase Realtime Database などの恒久的なURLを入れると消えなくなります' +
+        '(この端末にだけ設定されます)。</p>' +
+        '<div class="ep" id="rank-ep-now"></div>' +
+        '<input id="rank-ep" placeholder="https://～.firebaseio.com/shige.json">' +
+        '<div class="rank-btn-row"><button id="rank-ep-save">保存先を設定</button>' +
+        '<button id="rank-ep-clear" class="warn">既定に戻す</button></div>' +
+        '<p>記録のバックアップ。保存先が消えても、これを復元すれば戻せます。</p>' +
+        '<div class="rank-btn-row"><button id="rank-copy">📋 バックアップをコピー</button></div>' +
+        '<textarea id="rank-io" placeholder="ここにバックアップを貼って「復元」"></textarea>' +
+        '<div class="rank-btn-row"><button id="rank-restore">復元して共有側にも書き戻す</button></div>' +
+        '<div id="rank-cfg-msg"></div>' +
+      '</div>' +
+      '<button id="rank-close">閉じる</button></div>';
     document.body.appendChild(ov);
     ov.addEventListener("click", e => { if (e.target === ov) hide(); });
     document.getElementById("rank-close").onclick = hide;
@@ -1442,6 +1554,48 @@ window.RANK = (function () {
     document.getElementById("rank-nick").addEventListener("keydown", e => {
       if (e.key === "Enter") doSubmit();
     });
+    const gear = document.getElementById("rank-gear");
+    gear.onclick = () => {
+      const c = document.getElementById("rank-cfg");
+      c.classList.toggle("show");
+      if (c.classList.contains("show")) showCfg();
+    };
+    document.getElementById("rank-ep-save").onclick = async () => {
+      const v = (document.getElementById("rank-ep").value || "").trim();
+      if (!/^https?:\/\//.test(v)) { cfgMsg("http(s)から始まるURLを入れてください"); return; }
+      epSet(v);
+      cfgMsg("設定しました。書き戻しています…");
+      const all = mergeAll({});
+      await rawReq("PUT", all);
+      showCfg();
+      cfgMsg(online ? "新しい保存先に接続して、手元の記録を書き戻しました" : "設定しましたが、まだ繋がりません(URLを確認)");
+      if (cur) refresh(cur.game);
+    };
+    document.getElementById("rank-ep-clear").onclick = () => {
+      epSet("");
+      document.getElementById("rank-ep").value = "";
+      showCfg();
+      cfgMsg("既定の保存先に戻しました");
+    };
+    document.getElementById("rank-copy").onclick = async () => {
+      const t = exportAll();
+      document.getElementById("rank-io").value = t;
+      try { await navigator.clipboard.writeText(t); cfgMsg("クリップボードにコピーしました(" + t.length + "文字)"); }
+      catch (e) { cfgMsg("下の欄に出しました。長押しでコピーしてください"); }
+    };
+    document.getElementById("rank-restore").onclick = async () => {
+      cfgMsg("復元中…");
+      cfgMsg(await importAll(document.getElementById("rank-io").value || ""));
+      if (cur) refresh(cur.game);
+    };
+  }
+  function cfgMsg(t) { const e = document.getElementById("rank-cfg-msg"); if (e) e.textContent = t; }
+  function showCfg() {
+    const eps = epList();
+    document.getElementById("rank-ep-now").textContent =
+      eps.length ? ("現在の保存先: " + eps.map(e => e + (isTemporary(e) ? " ← 24時間で消える" : "")).join(" / "))
+                 : "保存先が未設定(この端末内にのみ記録)";
+    document.getElementById("rank-ep").value = epUser();
   }
   function hide() { document.getElementById("rank-ov").classList.remove("show"); }
   function setStatus(t) { document.getElementById("rank-status").textContent = t; }
@@ -1471,9 +1625,20 @@ window.RANK = (function () {
     setStatus("読み込み中…");
     const arr = await list(game);
     renderList(arr, game);
-    setStatus(EP
-      ? (online ? "共有ランキングに接続中(みんなのスコア)" : "共有ランキングに繋がらないため端末内の記録を表示中")
+    const eps = epList();
+    setStatus(eps.length
+      ? (online ? "共有ランキングに接続中(みんなのスコア)" + (healed ? " / 消えていた記録を書き戻しました" : "")
+                : "共有ランキングに繋がらないため端末内の記録を表示中")
       : "この端末に保存されたランキング(共有設定は未接続)");
+    const warn = document.getElementById("rank-warn");
+    if (warn) {
+      if (online && isTemporary(activeEp)) {
+        warn.textContent = "⚠️ 今の保存先(jsonblobの匿名Blob)は24時間で消えます。" +
+          "下の「⚙️ 保存先とバックアップ」から恒久的なURLを設定するか、バックアップを取ってください。" +
+          "なお記録はこの端末にも残っているので、消えた後に誰かがこの画面を開くと自動で書き戻されます。";
+        warn.classList.add("show");
+      } else warn.classList.remove("show");
+    }
   }
 
   async function doSubmit() {
@@ -1539,7 +1704,9 @@ window.RANK = (function () {
     refresh(keys[0]);
   }
 
-  return { open, hub, list, submit, getNick, setNick, hide, games: GAMES, endpoint: EP };
+  return { open, hub, list, submit, getNick, setNick, hide, games: GAMES,
+           endpoints: epList, setEndpoint: epSet, exportAll, importAll,
+           get endpoint() { return epList()[0] || ""; } };
 })();
 
 </script>
