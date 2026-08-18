@@ -371,7 +371,7 @@
   </div>
   <p class="tl-sub" style="font-size:.68rem">PCならキーボードでも遊べる(←→↑↓ / Z=攻撃 / X=必殺 / C=ガード / Space=ジャンプ)</p>
   <a class="home-link" href="../games/">← 暇かよ働けゲームセンターへ</a>
-  <p class="tl-sub" id="diag" style="font-size:.62rem;opacity:.6;line-height:1.6">build 2026.08.15-0815-0348</p>
+  <p class="tl-sub" id="diag" style="font-size:.62rem;opacity:.6;line-height:1.6">build 2026.08.15-0818-1533</p>
 </div>
 
 <!-- ================= キャラ選択 ================= -->
@@ -780,15 +780,46 @@ function inputEdges(i) {
 }
 const IN = [newInput(), newInput()];
 
+/* --- ポインタの取りこぼし対策 ---
+   指を離したイベントがゲーム外の要素(結果画面のオーバーレイなど)に飛ぶと、
+   スティックやボタンが押されたままになり一方向に固定される。
+   ・生きているポインタを常に把握し、消えたものは強制的に離す
+   ・画面上に指が1本も無くなったら全部離す(これが最後の砦)
+   ・掴んでいる指が行方不明でも、新しい指で必ず掴み直せるようにする */
+const livePointers = new Set();
+const releasers = [];                       // 各コントロールの「必要なら離す」処理
+function releaseAll() { releasers.forEach(f => f(true)); }
+window.addEventListener("pointerdown", e => livePointers.add(e.pointerId), true);
+["pointerup", "pointercancel"].forEach(t =>
+  window.addEventListener(t, e => livePointers.delete(e.pointerId), true));
+function allFingersUp(e) {
+  if (e.touches && e.touches.length === 0) { livePointers.clear(); releaseAll(); }
+}
+document.addEventListener("touchend", allFingersUp, true);
+document.addEventListener("touchcancel", allFingersUp, true);
+window.addEventListener("blur", releaseAll);
+document.addEventListener("visibilitychange", () => { if (document.hidden) releaseAll(); });
+setInterval(() => releasers.forEach(f => f(false)), 160);   // 見張り(0.16秒で自然治癒)
+
 /* --- タッチスティック --- */
 function bindStick(zoneId, stickId, knobId, input) {
   const zone = $(zoneId), stick = $(stickId), knob = $(knobId);
   let id = null, cx = 0, cy = 0, R = 46;
   const reset = () => { knob.style.transform = ""; input.lx = 0; input.ly = 0; id = null; };
+  function move(e) {
+    let dx = e.clientX - cx, dy = e.clientY - cy;
+    const m = Math.hypot(dx, dy);
+    if (m > R) { dx *= R / m; dy *= R / m; }
+    knob.style.transform = `translate(${dx}px,${dy}px)`;
+    input.lx = clamp(dx / R, -1, 1);
+    input.ly = clamp(dy / R, -1, 1);
+  }
   zone.addEventListener("pointerdown", e => {
     e.preventDefault(); ensureCtx();
-    if (id !== null) return;
+    // 前の指が行方不明でも新しい指で乗っ取る(固まったまま操作不能にしない)
     id = e.pointerId;
+    livePointers.add(id);
+    try { zone.setPointerCapture(id); } catch (err) {}
     const zr = zone.getBoundingClientRect(), sr = stick.getBoundingClientRect();
     R = sr.width * .42;
     // 押した場所にスティックを寄せる(親指の位置に追従)
@@ -798,25 +829,36 @@ function bindStick(zoneId, stickId, knobId, input) {
     cx = zr.left + lx; cy = zr.top + ly;
     move(e);
   });
-  function move(e) {
-    let dx = e.clientX - cx, dy = e.clientY - cy;
-    const m = Math.hypot(dx, dy);
-    if (m > R) { dx *= R / m; dy *= R / m; }
-    knob.style.transform = `translate(${dx}px,${dy}px)`;
-    input.lx = clamp(dx / R, -1, 1);
-    input.ly = clamp(dy / R, -1, 1);
-  }
   zone.addEventListener("pointermove", e => { if (e.pointerId === id) { e.preventDefault(); move(e); } });
-  zone.addEventListener("pointerup", e => { if (e.pointerId === id) { e.preventDefault(); reset(); } });
-  zone.addEventListener("pointercancel", e => { if (e.pointerId === id) reset(); });
+  const release = e => { if (!e || e.pointerId === id) reset(); };
+  zone.addEventListener("pointerup", release);
+  zone.addEventListener("pointercancel", release);
+  zone.addEventListener("lostpointercapture", release);
+  // ゾーンの外で指が離れても拾う
+  window.addEventListener("pointerup", release, true);
+  window.addEventListener("pointercancel", release, true);
+  releasers.push(force => { if (force || (id !== null && !livePointers.has(id))) reset(); });
 }
 function bindBtn(btnId, input, key) {
   const el = $(btnId);
-  el.addEventListener("pointerdown", e => { e.preventDefault(); ensureCtx(); input[key] = 1; el.classList.add("hold"); });
-  const up = e => { if (e) e.preventDefault(); input[key] = 0; el.classList.remove("hold"); };
+  let pid = null;
+  const up = e => {
+    if (e && e.pointerId !== undefined && pid !== null && e.pointerId !== pid) return;
+    pid = null; input[key] = 0; el.classList.remove("hold");
+  };
+  el.addEventListener("pointerdown", e => {
+    e.preventDefault(); ensureCtx();
+    pid = e.pointerId;
+    livePointers.add(pid);
+    try { el.setPointerCapture(pid); } catch (err) {}
+    input[key] = 1; el.classList.add("hold");
+  });
   el.addEventListener("pointerup", up);
   el.addEventListener("pointercancel", up);
-  el.addEventListener("pointerleave", up);
+  el.addEventListener("lostpointercapture", up);
+  window.addEventListener("pointerup", up, true);
+  window.addEventListener("pointercancel", up, true);
+  releasers.push(force => { if (force || (pid !== null && !livePointers.has(pid))) up(null); });
 }
 bindStick("stick-zone", "stick", "knob", IN[0]);
 bindBtn("b-atk", IN[0], "a"); bindBtn("b-sp", IN[0], "b"); bindBtn("b-jmp", IN[0], "j"); bindBtn("b-grd", IN[0], "g");
@@ -2182,6 +2224,7 @@ function buildMatch(p1Key, p2Key, opt) {
   show("battle-screen");
   fitCanvas();
   running = true;
+  releaseAll();
   IN.forEach(i => { i.lx = 0; i.ly = 0; i.a = 0; i.b = 0; i.j = 0; i.g = 0; });
 }
 async function startMatch(p1Key, p2Key, opt) {
@@ -2307,7 +2350,7 @@ $("res-quit").onclick = () => { $("result-ov").classList.remove("show"); toTitle
 ================================================================ */
 $("pause-btn").onclick = () => {
   if (!running || over) return;
-  paused = true; $("pause-ov").classList.add("show");
+  paused = true; releaseAll(); $("pause-ov").classList.add("show");
   if (bgmEl) bgmEl.pause();
 };
 $("pz-resume").onclick = () => {
