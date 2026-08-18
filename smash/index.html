@@ -371,7 +371,7 @@
   </div>
   <p class="tl-sub" style="font-size:.68rem">PCならキーボードでも遊べる(←→↑↓ / Z=攻撃 / X=必殺 / C=ガード / Space=ジャンプ)</p>
   <a class="home-link" href="../games/">← 暇かよ働けゲームセンターへ</a>
-  <p class="tl-sub" id="diag" style="font-size:.62rem;opacity:.6;line-height:1.6">build 2026.08.15-0818-1548</p>
+  <p class="tl-sub" id="diag" style="font-size:.62rem;opacity:.6;line-height:1.6">build 2026.08.15-0818-1555</p>
 </div>
 
 <!-- ================= キャラ選択 ================= -->
@@ -747,7 +747,9 @@ const STAGES = [
     deco: "portrait"
   }
 ];
-const BLAST = { l: -790, r: 790, t: -560, b: 580 };
+// 上方向の生存域を広く取る。天井が近いと上スマッシュ1発で即死してしまうため、
+// メインステージ(y=0)から940px、一番高い床(y=-320)からでも620pxの猶予を持たせる
+const BLAST = { l: -790, r: 790, t: -940, b: 580 };
 const GROUND_TH = 44;
 
 /* ================================================================
@@ -1613,12 +1615,12 @@ function stepCamera() {
   const spanX = Math.abs(xs[0] - xs[1]) + 330, spanY = Math.abs(ys[0] - ys[1]) + 250;
   const zx = CW / spanX, zy = CH / spanY;
   // 上限を1.55に抑える。近距離で寄りすぎると「画面が勝手に拡大された」ように見えるため
-  cam.tz = clamp(Math.min(zx, zy), .5, 1.55);
+  cam.tz = clamp(Math.min(zx, zy), .44, 1.55);
   cam.zb += (cam.tz - cam.zb) * .075;
   zoomPunch *= .76;
   if (zoomPunch < .002) zoomPunch = 0;
   cam.z = cam.zb * (1 + zoomPunch);
-  const tx = clamp(mx, -430, 430), ty = clamp(my, -400, 150);
+  const tx = clamp(mx, -430, 430), ty = clamp(my, -660, 150);
   cam.x += (tx - cam.x) * .1;
   cam.y += (ty - cam.y) * .09;
 }
@@ -1749,6 +1751,8 @@ function drawStage(g) {
   });
   const [, bby] = w2s(0, BLAST.b);
   g.beginPath(); g.moveTo(0, bby); g.lineTo(CW, bby); g.stroke();
+  const [, bty] = w2s(0, BLAST.t);
+  g.beginPath(); g.moveTo(0, bty); g.lineTo(CW, bty); g.stroke();
   g.restore();
 }
 const imgCache = {};
