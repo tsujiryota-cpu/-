@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>進め!しげる軍団【群衆ラン・科学的根拠0人】</title>
-<meta property="og:title" content="🚩 進め!しげる軍団【+1ゲートで最強の軍団に成り上がる】">
-<meta property="og:description" content="しげるを増やせ。ゲートを選べ。syamu軍の大群を撃ち抜け。">
+<title>進め!セイキン軍団【群衆ラン・科学的根拠0人】</title>
+<meta property="og:title" content="🚩 進め!セイキン軍団【+1ゲートで最強の軍団に成り上がる】">
+<meta property="og:description" content="セイキンを増やせ。ゲートを選べ。兄・ヒカキンを倒しに行け。">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
@@ -239,8 +239,8 @@
 
 <!-- ================= タイトル ================= -->
 <div id="title-screen" class="screen show">
-  <h1>進め!<br>しげる軍団</h1>
-  <p class="tl-sub"><b class="gold">+1ゲート</b>でしげるを増やし、syamu軍の大群を撃ち抜け。<br>最強の総理に成り上がる。</p>
+  <h1>進め!<br>セイキン軍団</h1>
+  <p class="tl-sub"><b class="gold">+1ゲート</b>でセイキンを増やし、syamu軍の大群を撃ち抜け。<br>兄・覇王ヒカキンの帝国に殴り込む。</p>
   <div class="tl-army" id="tl-army"></div>
   <button class="btn" id="go-start">🚩 進軍開始<small>どこまで進めるか。スコアはみんなのランキングへ</small></button>
   <div class="note">
@@ -248,13 +248,13 @@
     ・青いゲートは<b class="gold">+N / ×2</b>で増える。赤いゲートは減る。通る方を選べ<br>
     ・軍団は<b class="gold">おにぎりを自動連射</b>。樽を撃ち抜くと援軍や連射アップ<br>
     ・敵に触れると1体につき味方1体を失う。0体になったら終戦<br>
-    ・<b class="gold">HELP!!の檻</b>を撃ち抜くと英雄が参戦(検討砲/3方向拳/超連射)<br>
+    ・<b class="gold">HELP!!の檻</b>を撃ち抜くと英雄が参戦(岸田の検討砲/なめられ茂の拳/<b>前主人公・石破茂</b>のおにぎり連射)<br>
     ・<b class="gold">武器台座</b>を踏むとガトリング/大砲を装備(2つまで)<br>
     ・<b style="color:#ff8a8a">岩ローラー</b>は撃ち壊さないと轢かれる(軍団の2割+2人)<br>
     ・各ステージの最後に<b style="color:#ff8a8a">ボス</b>が待つ。倒せば次のステージへ
   </div>
   <a class="home-link" href="../games/">← 暇かよ働けゲームセンターへ</a>
-  <p class="tl-sub" style="font-size:.6rem;opacity:.55">build 2026.08.20-0822-0059</p>
+  <p class="tl-sub" style="font-size:.6rem;opacity:.55">build 2026.08.20-0822-0103</p>
 </div>
 
 <!-- ================= ゲーム ================= -->
@@ -462,9 +462,9 @@ function riceSprite() { return emojiSprite("🍙", 26); }
 const START_COUNT = 5, MAX_VISUAL = 120;
 /* 囚われの救援ヒーロー: 檻を撃ち抜いて助けると軍団の先頭で戦ってくれる */
 const HEROES = {
-  kishida: { name: "検討師・岸田文雄", every: 30, kind: "kentou" },   // 貫通する検討砲
-  mash:    { name: "なめられ茂",       every: 22, kind: "punch" },    // 3方向の拳
-  seikin:  { name: "セイキン",         every: 6,  kind: "mic" }       // 超連射マイク
+  kishida:  { name: "検討師・岸田文雄", every: 30, kind: "kentou" },   // 貫通する検討砲
+  mash:     { name: "なめられ茂",       every: 22, kind: "punch" },    // 3方向の拳
+  portrait: { name: "前主人公・石破茂", every: 6,  kind: "rice" }      // 超連射おにぎり(主役の座を奪われた男)
 };
 const HERO_KEYS = Object.keys(HEROES);
 /* 台座で拾える武器 */
@@ -699,7 +699,7 @@ function step() {
     } else if (def.kind === "punch") {
       for (const vx of [-2.2, 0, 2.2]) projs.push({ x: hx, y: hy, vx, vy: 10, dmg: 2, glyph: "👊" });
     } else {
-      projs.push({ x: hx, y: hy, vx: rand(-.7, .7), vy: 12.5, dmg: 1, glyph: "🎤" });
+      projs.push({ x: hx, y: hy, vx: rand(-.7, .7), vy: 12.5, dmg: 1, glyph: "🍚" });
     }
   });
   // 拾った武器(隊列の左右前方から)
@@ -994,7 +994,7 @@ function gameOver() {
   const finalScore = score + Math.floor(distTotal / 10);
   setTimeout(() => {
     $("res-head").textContent = "終戦…";
-    $("res-face").src = IMG.portrait;
+    $("res-face").src = IMG.seikin;
     const heroNames = army.heroes.map(h => HEROES[h.key].name).join("/") || "なし";
     $("res-stats").innerHTML =
       `<div><span>到達</span><b>STAGE ${stageNo}</b></div>` +
@@ -1098,7 +1098,7 @@ function render() {
 }
 function drawArmy(g) {
   const vis = Math.min(army.count, MAX_VISUAL);
-  const spr = sprite("portrait", 34, "#4ac0ff");
+  const spr = sprite("seikin", 34, "#4ac0ff");
   const bob = Math.sin(frames * .28) * 2;
   for (let i = vis - 1; i >= 0; i--) {
     const [dx, dy] = slotPos(i);
@@ -1406,7 +1406,7 @@ function toTitle() {
 (function initTitle() {
   Object.keys(IMG).forEach(imgEl);   // 全画像を先読み
   const w = $("tl-army");
-  ["portrait", "portrait", "portrait", "syamu", "yaju", "hikakin", "kurimatsu", "todai", "vacuum", "denjiro"].forEach((k, i) => {
+  ["seikin", "seikin", "seikin", "syamu", "yaju", "hikakin", "kurimatsu", "todai", "vacuum", "denjiro"].forEach((k, i) => {
     const im = document.createElement("img");
     im.src = IMG[k];
     if (i >= 3) im.className = "foe";
@@ -1437,7 +1437,7 @@ window.RANK = (function () {
     puyoshige: { label: "🎰 CRしげさん",      unit: "点" },
     duel:      { label: "⚔️ しげる決闘",      unit: "与ダメ" },
     smash:     { label: "💥 しげる大乱闘",  unit: "点" },
-    gundan:    { label: "🚩 しげる軍団",    unit: "点" }
+    gundan:    { label: "🚩 セイキン軍団",  unit: "点" }
   };
   const GK = Object.keys(GAMES);
   const NICK_KEY = "shige_nick";
