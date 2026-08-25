@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>サンデーズ オーダー表</title>
+<meta name="description" content="草野球のオーダー(打順・守備位置)とメンバー紹介を写真つきで共有するページ。ブラウザ上で編集できます。">
+<meta property="og:title" content="⚾ サンデーズ オーダー表">
+<meta property="og:description" content="打順・守備位置・メンバー紹介を写真つきで。集合時間と持ち物もここで確認。">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;700;900&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap">
+<style id="css">
+/* ============================================================
+   トークン(ライト = 昼のグラウンド)
+   ============================================================ */
+:root{
+  --paper:#EFEDE3; --panel:#FBFAF4;
+  --ink:#161B16; --ink-2:#4C5449; --ink-3:#7D8478;
+  --rule:rgba(22,27,22,.14); --rule-strong:rgba(22,27,22,.26);
+  --red:#BE3A2B; --turf:#2E5E3E; --dirt:#A97C50;
+  --header-bg:#1E3D28; --header-ink:#F1EFE3; --header-ink-2:#A8C0A6;
+  --chip:rgba(22,27,22,.06);
+  --shadow:0 1px 0 rgba(22,27,22,.06), 0 8px 24px -18px rgba(22,27,22,.5);
+  --flash:rgba(190,58,43,.16);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0F120E; --panel:#181D17;
+    --ink:#EBE8DD; --ink-2:#A9B0A2; --ink-3:#7C8479;
+    --rule:rgba(235,232,221,.16); --rule-strong:rgba(235,232,221,.3);
+    --red:#FF6B54; --turf:#8CC07A; --dirt:#C79A6B;
+    --header-bg:#14201A; --header-ink:#EBE8DD; --header-ink-2:#93A98F;
+    --chip:rgba(235,232,221,.08);
+    --shadow:0 1px 0 rgba(0,0,0,.4), 0 10px 30px -20px #000;
+    --flash:rgba(255,107,84,.2);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0F120E; --panel:#181D17;
+  --ink:#EBE8DD; --ink-2:#A9B0A2; --ink-3:#7C8479;
+  --rule:rgba(235,232,221,.16); --rule-strong:rgba(235,232,221,.3);
+  --red:#FF6B54; --turf:#8CC07A; --dirt:#C79A6B;
+  --header-bg:#14201A; --header-ink:#EBE8DD; --header-ink-2:#93A98F;
+  --chip:rgba(235,232,221,.08);
+  --shadow:0 1px 0 rgba(0,0,0,.4), 0 10px 30px -20px #000;
+  --flash:rgba(255,107,84,.2);
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  background:var(--paper); color:var(--ink);
+  font-family:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic",Meiryo,sans-serif;
+  font-size:16px; line-height:1.75; -webkit-font-smoothing:antialiased;
+}
+.num{font-family:"Saira Condensed","Arial Narrow",Impact,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.wrap{max-width:980px;margin:0 auto;padding:0 18px}
+:focus-visible{outline:2px solid var(--red);outline-offset:3px;border-radius:4px}
+button{font:inherit;color:inherit}
+
+/* ---------- ヘッダー ---------- */
+.hero{background:var(--header-bg);color:var(--header-ink);position:relative;overflow:hidden}
+.hero__diamond{position:absolute;right:-40px;top:-20px;width:340px;height:340px;opacity:.16;pointer-events:none}
+.hero__inner{position:relative;padding:34px 0 30px}
+.eyebrow{font-size:.78rem;font-weight:700;letter-spacing:.18em;color:var(--header-ink-2)}
+.hero__team{font-weight:900;font-size:clamp(2.1rem,7vw,3.4rem);line-height:1.08;letter-spacing:-.01em;margin:.28em 0 .1em;text-wrap:balance}
+.hero__vs{display:flex;align-items:baseline;gap:.55em;flex-wrap:wrap;font-size:clamp(1rem,3.4vw,1.25rem);font-weight:700}
+.hero__vs .vs{font-family:"Saira Condensed",sans-serif;font-weight:900;font-size:1.5em;color:var(--header-ink-2);letter-spacing:.02em}
+.hero__ground{margin-top:.5em;color:var(--header-ink-2);font-size:.95rem;font-weight:500}
+.hero__tools{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap}
+.btn{
+  font-size:.85rem;font-weight:700;cursor:pointer;background:transparent;color:var(--header-ink);
+  border:1.5px solid rgba(241,239,227,.38);border-radius:999px;padding:.45em 1.1em;
+  display:inline-flex;align-items:center;gap:.45em;transition:background .18s ease,border-color .18s ease,transform .18s ease;
+}
+.btn:hover{background:rgba(241,239,227,.12);border-color:rgba(241,239,227,.7)}
+.btn:active{transform:translateY(1px)}
+.btn--primary{background:var(--header-ink);color:var(--header-bg);border-color:var(--header-ink)}
+.btn--primary:hover{background:#fff;border-color:#fff}
+
+/* ---------- 試合情報 ---------- */
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));border-top:1px solid var(--rule);background:var(--panel)}
+.fact{padding:14px 18px;border-right:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+.fact:last-child{border-right:none}
+.fact dt{font-size:.7rem;font-weight:700;letter-spacing:.14em;color:var(--ink-3)}
+.fact dd{font-size:1.02rem;font-weight:700;margin-top:.15em}
+.fact dd small{font-weight:500;color:var(--ink-2);font-size:.82rem}
+
+/* ---------- セクション ---------- */
+section{margin-top:44px}
+.sec-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;border-bottom:2px solid var(--ink);padding-bottom:8px}
+.sec-head h2{font-size:1.3rem;font-weight:900;line-height:1.3}
+.sec-head p{font-size:.8rem;color:var(--ink-2);font-weight:500}
+
+/* ---------- オーダー表 ---------- */
+.order{margin-top:16px;background:var(--panel);border:1px solid var(--rule-strong);border-radius:6px;box-shadow:var(--shadow);overflow:hidden}
+.order__row{
+  display:grid;grid-template-columns:52px 40px minmax(0,1fr) auto;align-items:center;gap:12px;
+  width:100%;text-align:left;background:transparent;border:0;cursor:pointer;
+  padding:11px 14px;border-bottom:1px solid var(--rule);transition:background .16s ease;
+}
+.order__row:last-child{border-bottom:0}
+.order__row:hover{background:var(--chip)}
+.order__no{font-family:"Saira Condensed",sans-serif;font-variant-numeric:tabular-nums;font-size:2rem;font-weight:900;color:var(--red);text-align:center;line-height:1}
+.order__no small{display:block;font-family:"Zen Kaku Gothic New",sans-serif;font-size:.34em;color:var(--ink-3);letter-spacing:.1em;line-height:1.2}
+.pos{width:40px;height:40px;border-radius:5px;display:grid;place-items:center;font-weight:900;font-size:1.05rem;color:#FBFAF4;background:var(--turf)}
+.pos[data-g="battery"]{background:var(--red)}
+.pos[data-g="outfield"]{background:var(--dirt)}
+.pos[data-g="dh"]{background:var(--ink-3)}
+.order__name{font-weight:700;font-size:1.08rem;display:flex;align-items:baseline;gap:.5em;flex-wrap:wrap}
+.order__name .badge{font-size:.66rem;font-weight:700;letter-spacing:.08em;color:var(--red);border:1px solid currentColor;border-radius:3px;padding:.05em .35em}
+.order__note{font-size:.82rem;color:var(--ink-2);font-weight:500;line-height:1.5}
+.order__meta{display:flex;align-items:center;gap:10px;color:var(--ink-2);font-size:.8rem;font-weight:700;white-space:nowrap}
+.order__meta .jersey{font-family:"Saira Condensed",sans-serif;font-variant-numeric:tabular-nums;font-size:1.35rem;font-weight:900;color:var(--ink);line-height:1}
+.bat{border:1px solid var(--rule-strong);border-radius:3px;padding:.1em .4em;font-size:.72rem}
+
+/* 控え */
+.bench{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.bench__item{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--rule);border-radius:999px;padding:.35em .9em .35em .55em;font-size:.88rem;font-weight:700;cursor:pointer}
+.bench__item:hover{border-color:var(--rule-strong)}
+.bench__item .jersey{font-family:"Saira Condensed",sans-serif;font-weight:900;font-size:1.15rem;color:var(--red);font-variant-numeric:tabular-nums}
+.bench__item small{font-weight:500;color:var(--ink-2)}
+.bench__empty{font-size:.85rem;color:var(--ink-3);margin-top:12px}
+
+/* ---------- メンバー紹介 ---------- */
+.members{display:grid;gap:14px;margin-top:18px;grid-template-columns:repeat(auto-fill,minmax(420px,1fr))}
+@media (max-width:900px){.members{grid-template-columns:1fr}}
+.card{position:relative;display:grid;grid-template-columns:112px minmax(0,1fr);gap:14px;background:var(--panel);border:1px solid var(--rule-strong);border-radius:8px;padding:14px;box-shadow:var(--shadow);overflow:hidden;scroll-margin-top:20px}
+.card__jersey{position:absolute;right:10px;top:2px;font-family:"Saira Condensed",sans-serif;font-weight:900;font-size:3.6rem;line-height:1;color:var(--ink);opacity:.09;font-variant-numeric:tabular-nums;pointer-events:none}
+.photo{position:relative;aspect-ratio:4/5;border-radius:5px;overflow:hidden;background:var(--chip);border:1px solid var(--rule)}
+.photo img{width:100%;height:100%;object-fit:cover;display:block}
+.photo__fallback{position:absolute;inset:0;display:grid;place-items:center;align-content:center;gap:2px;font-family:"Saira Condensed",sans-serif;font-weight:900;font-size:2rem;color:var(--ink-3);background:repeating-linear-gradient(135deg,var(--chip) 0 8px,transparent 8px 16px)}
+.photo__fallback span{font-family:"Zen Kaku Gothic New",sans-serif;font-size:.62rem;font-weight:700;letter-spacing:.06em}
+.card__body{min-width:0;padding-right:52px}
+.card__kana{font-size:.7rem;letter-spacing:.1em;color:var(--ink-3);font-weight:700}
+.card__name{font-size:1.22rem;font-weight:900;line-height:1.25;margin-top:-.1em}
+.card__role{font-size:.8rem;font-weight:700;color:var(--turf);margin-top:.2em}
+.tags{display:flex;flex-wrap:wrap;gap:5px;margin:.55em 0}
+.tag{font-size:.72rem;font-weight:700;background:var(--chip);border-radius:3px;padding:.15em .5em;color:var(--ink-2)}
+.card__intro{font-size:.9rem;color:var(--ink-2);line-height:1.72}
+.card--flash{animation:flash 1.1s ease-out}
+@keyframes flash{0%,40%{background:var(--flash)}100%{background:var(--panel)}}
+
+/* ---------- 連絡事項 ---------- */
+.notes{margin-top:16px;background:var(--panel);border:1px solid var(--rule-strong);border-radius:8px;padding:6px 18px}
+.notes li{list-style:none;padding:11px 0;border-bottom:1px solid var(--rule);display:grid;grid-template-columns:96px minmax(0,1fr);gap:12px;align-items:baseline}
+.notes li:last-child{border-bottom:0}
+.notes b{font-size:.74rem;letter-spacing:.1em;color:var(--ink-3)}
+.notes span{font-size:.94rem;font-weight:500}
+@media (max-width:520px){.notes li{grid-template-columns:1fr;gap:2px}}
+
+footer{margin:52px 0 40px;padding-top:18px;border-top:1px solid var(--rule);font-size:.8rem;color:var(--ink-3);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+
+/* ---------- トースト ---------- */
+.toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,16px);background:var(--ink);color:var(--paper);font-size:.85rem;font-weight:700;padding:.6em 1.2em;border-radius:999px;opacity:0;pointer-events:none;transition:opacity .22s ease,transform .22s ease;z-index:60;max-width:88vw;text-align:center;line-height:1.5}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* ---------- 編集画面 ---------- */
+.editor{position:fixed;inset:0;z-index:50;background:var(--paper);overflow-y:auto;overscroll-behavior:contain}
+.editor[hidden]{display:none}
+.editor__bar{position:sticky;top:0;z-index:3;background:var(--header-bg);color:var(--header-ink);box-shadow:0 6px 20px -14px rgba(0,0,0,.6)}
+.editor__bar .wrap{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:12px;padding-bottom:12px;flex-wrap:wrap}
+.editor__title{font-weight:900;font-size:1.05rem;display:flex;align-items:baseline;gap:.6em;flex-wrap:wrap}
+.editor__title small{font-weight:500;font-size:.72rem;color:var(--header-ink-2);letter-spacing:.02em}
+.editor__actions{display:flex;gap:8px;flex-wrap:wrap}
+.editor__body{padding-bottom:64px}
+.ed-sec{margin-top:32px}
+.ed-sec > h3{font-size:1.05rem;font-weight:900;border-bottom:2px solid var(--ink);padding-bottom:6px;display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.ed-sec > h3 span{font-size:.74rem;font-weight:500;color:var(--ink-2)}
+.ed-grid{display:grid;gap:10px;margin-top:14px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.ed-list{display:grid;gap:10px;margin-top:14px}
+.field{display:grid;gap:3px}
+.field > label{font-size:.7rem;font-weight:700;letter-spacing:.1em;color:var(--ink-3)}
+input,select,textarea{
+  font:inherit;font-size:.92rem;color:var(--ink);background:var(--panel);
+  border:1px solid var(--rule-strong);border-radius:5px;padding:.5em .6em;width:100%;
+}
+textarea{resize:vertical;line-height:1.7}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-offset:1px}
+.ed-row{background:var(--panel);border:1px solid var(--rule-strong);border-radius:8px;padding:12px;display:grid;gap:10px}
+.ed-row__head{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.ed-row__no{font-family:"Saira Condensed",sans-serif;font-weight:900;font-size:1.5rem;color:var(--red);line-height:1;min-width:2ch;font-variant-numeric:tabular-nums}
+.ed-row__tools{display:flex;gap:6px}
+.icon-btn{width:32px;height:32px;border-radius:5px;border:1px solid var(--rule-strong);background:transparent;cursor:pointer;font-size:.85rem;font-weight:700;display:grid;place-items:center;color:var(--ink-2)}
+.icon-btn:hover{background:var(--chip);color:var(--ink)}
+.icon-btn--danger:hover{border-color:var(--red);color:var(--red)}
+.ed-row__cols{display:grid;gap:10px;grid-template-columns:1fr 1fr}
+@media (max-width:600px){.ed-row__cols{grid-template-columns:1fr}}
+.ed-member{display:grid;grid-template-columns:96px minmax(0,1fr);gap:12px}
+@media (max-width:600px){.ed-member{grid-template-columns:80px minmax(0,1fr)}}
+.ed-photo{display:grid;gap:6px;align-content:start}
+.ed-photo .photo{width:100%}
+.ed-photo__btns{display:grid;gap:4px}
+.btn-s{font-size:.72rem;font-weight:700;padding:.4em .5em;border:1px solid var(--rule-strong);border-radius:5px;background:transparent;cursor:pointer;text-align:center}
+.btn-s:hover{background:var(--chip)}
+.btn-s--danger:hover{border-color:var(--red);color:var(--red)}
+.add-btn{margin-top:12px;width:100%;padding:.7em;border:1.5px dashed var(--rule-strong);border-radius:8px;background:transparent;cursor:pointer;font-weight:700;font-size:.88rem;color:var(--ink-2)}
+.add-btn:hover{border-color:var(--red);color:var(--red)}
+.ed-hint{font-size:.8rem;color:var(--ink-2);background:var(--chip);border-radius:6px;padding:10px 12px;margin-top:14px;line-height:1.7}
+.ed-foot{display:flex;gap:8px;flex-wrap:wrap;margin-top:34px;padding-top:18px;border-top:1px solid var(--rule)}
+.ed-foot .btn-s{padding:.55em 1em}
+.saving{opacity:.55;pointer-events:none}
+
+/* 読み込み時のスタッガー */
+.reveal{opacity:0;transform:translateY(8px);animation:rise .5s cubic-bezier(.2,.7,.3,1) forwards}
+@keyframes rise{to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){
+  .reveal{animation:none;opacity:1;transform:none}
+  .card--flash{animation:none}
+  *{transition:none!important}
+}
+
+/* ---------- 印刷 ---------- */
+@media print{
+  body{background:#fff;color:#000}
+  .hero{background:#fff;color:#000;border-bottom:2px solid #000}
+  .hero__diamond,.hero__tools,.no-print,footer,.editor{display:none!important}
+  .order,.card,.notes{box-shadow:none}
+  .order__no{color:#000}
+  .pos{background:#000!important;color:#fff}
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="application/json" id="team-data">
+{
+  "team": "サンデーズ",
+  "tagline": "毎週日曜、河川敷集合",
+  "game": {
+    "dateLabel": "2026.09.13 SUN",
+    "playball": "9:00",
+    "gather": "8:30",
+    "opponent": "多摩川ブレイカーズ",
+    "ground": "多摩川緑地 第3グラウンド（南武線 鹿島田駅 徒歩12分）",
+    "format": "7回 または 90分",
+    "uniform": "白ユニフォーム / 紺帽",
+    "weather": "雨天中止（当日7:00にLINEで連絡）"
+  },
+  "roster": [
+    { "id":"m1",  "name":"田中 陽介",   "kana":"TANAKA YOSUKE",     "no":"7",  "role":"外野手 / 打右投左", "bat":"左", "photo":"", "tags":["四球王","遅刻ゼロ"], "intro":"3年連続でチーム最多出塁。とにかく粘って球数を投げさせるのが仕事。守備は中堅から声が飛んでくるので安心して任せられます。" },
+    { "id":"m2",  "name":"佐々木 亮",   "kana":"SASAKI RYO",        "no":"6",  "role":"遊撃手 / 打右投右", "bat":"右", "photo":"", "tags":["バント職人","守備の要"], "intro":"送りバントの成功率がとても高く、走者が出た時の頼れる2番。ショートの正面のゴロはまず抜けません。" },
+    { "id":"m3",  "name":"村上 健太",   "kana":"MURAKAMI KENTA",    "no":"9",  "role":"外野手 / 打左投右", "bat":"左", "photo":"", "tags":["広角打法","元高校球児"], "intro":"高校まで野球部。左右に打ち分けられるので走者を進めるのが得意。ライトからの返球は一直線です。" },
+    { "id":"m4",  "name":"辻 涼太",     "kana":"TSUJI RYOTA",       "no":"5",  "role":"三塁手 / 打右投右", "bat":"右", "photo":"", "tags":["主将","グラウンド予約係"], "intro":"キャプテン。グラウンド確保から審判の手配まで担当。打席では「思い切り振る」以外の作戦を持ち合わせていません。" },
+    { "id":"m5",  "name":"大森 拓海",   "kana":"OMORI TAKUMI",      "no":"33", "role":"一塁手 / 打右投右", "bat":"右", "photo":"", "tags":["チーム唯一の柵越え","筋トレ勢"], "intro":"当たれば飛ぶ。今季すでに柵越え2本。一塁の守備も無難で、悪送球をよく拾ってくれます。" },
+    { "id":"m6",  "name":"井上 慎吾",   "kana":"INOUE SHINGO",      "no":"10", "role":"捕手 / 打右投右",   "bat":"右", "photo":"", "tags":["声出し担当","配球係"], "intro":"投手のクセを全部把握している頭脳派キャッチャー。試合中いちばんよく喋っている人。道具の管理もお願いしています。" },
+    { "id":"m7",  "name":"高橋 直人",   "kana":"TAKAHASHI NAOTO",   "no":"23", "role":"外野手 / 打右投右", "bat":"右", "photo":"", "tags":["盗塁王","陸上部出身"], "intro":"出塁したら走ります。今季の盗塁成功率は9割。守備範囲も広く、レフト線の当たりは追いつきます。" },
+    { "id":"m8",  "name":"小林 優",     "kana":"KOBAYASHI YU",      "no":"4",  "role":"二塁手 / 打右投右", "bat":"右", "photo":"", "tags":["堅守","スコア記録"], "intro":"ダブルプレーの起点。派手さはないけれど、二塁を任せると失点が減ります。スコアブックも書けます。" },
+    { "id":"m9",  "name":"渡辺 慶太",   "kana":"WATANABE KEITA",    "no":"18", "role":"投手 / 打右投右",   "bat":"右", "photo":"", "tags":["先発","技巧派"], "intro":"速球で押すタイプではなく、緩急で打ち取る先発。3回までは安定するので、そこまでに点を取りたいところ。" },
+    { "id":"m10", "name":"森本 大地",   "kana":"MORIMOTO DAICHI",   "no":"11", "role":"投手 / 打左投左",   "bat":"左", "photo":"", "tags":["2番手","サウスポー"], "intro":"4回以降のリリーフ担当。角度のあるボールで右打者を詰まらせます。打席では意外とバットに当たります。" },
+    { "id":"m11", "name":"岡田 蓮",     "kana":"OKADA REN",         "no":"2",  "role":"内野手・代走 / 打右投右", "bat":"右", "photo":"", "tags":["代走","ユーティリティ","最年少"], "intro":"内野ならどこでも守れる便利屋。終盤の代走で1点をもぎ取る役割。チーム最年少で元気だけは無限にあります。" },
+    { "id":"m12", "name":"石川 悠",     "kana":"ISHIKAWA YU",       "no":"25", "role":"外野手・代打 / 打左投右", "bat":"左", "photo":"", "tags":["代打","写真係"], "intro":"ここで一本欲しい場面の代打。狙い球を絞って振り抜くスタイル。試合の写真はだいたいこの人が撮っています。" }
+  ],
+  "lineup": [
+    { "id":"m1", "pos":"中", "note":"出塁率お化け。とりあえず塁に出る" },
+    { "id":"m2", "pos":"遊", "note":"バント職人。サインは全部通る" },
+    { "id":"m3", "pos":"右", "note":"逆方向へ運ぶのが上手い" },
+    { "id":"m4", "pos":"三", "note":"主将。困ったら4番が返す", "badge":"主将" },
+    { "id":"m5", "pos":"一", "note":"チーム唯一の長距離砲" },
+    { "id":"m6", "pos":"捕", "note":"守備の司令塔。声が一番でかい" },
+    { "id":"m7", "pos":"左", "note":"足はチーム最速、打球は正直" },
+    { "id":"m8", "pos":"二", "note":"送球が丁寧。併殺の起点" },
+    { "id":"m9", "pos":"投", "note":"技巧派。3回までは無失点" }
+  ],
+  "notes": [
+    { "label":"集合", "text":"8:30 グラウンド前の駐車場に集合。遅れる人はLINEグループへ" },
+    { "label":"持ち物", "text":"グローブ / バット / スパイク / 白ユニ・紺帽 / 飲み物（多め）" },
+    { "label":"当番", "text":"ベース設置=渡辺・小林 / 審判=辻 / 写真=石川 / ゴミ持ち帰り=全員" },
+    { "label":"会費", "text":"1人1,000円（グラウンド代・ボール代）。井上が集めます" },
+    { "label":"試合後", "text":"12:00ごろ解散 → 希望者で駅前の「大将」で打ち上げ" }
+  ],
+  "updatedAt": "2026.08.25"
+}
+</script>
+
+<script id="app">
+"use strict";
+/* ===========================================================================
+   草野球オーダー表 — 画面上のフォームだけで編集できるページ
+   データは同じファイル内の <script id="team-data"> に入っています。
+   「編集」→ 保存 で、共有URLのページ自体が新しい内容に置き換わります。
+   =========================================================================== */
+
+const POS_LIST = ["投","捕","一","二","三","遊","左","中","右","指"];
+const POS_GROUP = {"投":"battery","捕":"battery","一":"infield","二":"infield","三":"infield","遊":"infield","左":"outfield","中":"outfield","右":"outfield","指":"dh"};
+const BAT_LIST = ["右","左","両"];
+const FONT_LINK = '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;700;900&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap">';
+const LS_KEY = "yakyu-order-sheet";
+
+/* ---------- 小道具 ---------- */
+const el = (tag, cls) => { const n = document.createElement(tag); if(cls) n.className = cls; return n; };
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const clone = (o) => JSON.parse(JSON.stringify(o));
+const todayLabel = () => {
+  const d = new Date();
+  const p = (n) => String(n).padStart(2,"0");
+  return d.getFullYear() + "." + p(d.getMonth()+1) + "." + p(d.getDate());
+};
+
+/* ---------- データの読み込み ---------- */
+function readEmbedded(){
+  try{ return JSON.parse(document.getElementById("team-data").textContent); }
+  catch(e){ console.error("データを読めませんでした", e); return null; }
+}
+/* このファイルに埋め込まれているデータの世代印 */
+function embeddedStamp(){
+  const e = readEmbedded() || {};
+  return String(e.savedAt || e.updatedAt || "");
+}
+function loadData(){
+  const base = readEmbedded() || { team:"チーム名", tagline:"", game:{}, roster:[], lineup:[], notes:[], updatedAt:"" };
+  try{
+    const saved = JSON.parse(localStorage.getItem(LS_KEY) || "null");
+    /* 端末に残した下書きは、埋め込みデータが同じ世代のときだけ使う
+       （公開版が新しくなったら下書きは捨てる） */
+    if(saved && saved.base === embeddedStamp() && saved.data) return saved.data;
+  }catch(e){ /* localStorage が使えない環境は無視 */ }
+  return base;
+}
+let DATA = loadData();
+let DRAFT = null;
+let capArtifact = null;   /* Artifact として公開されている場合の保存先 */
+let capDownloads = null;
+
+const byId = (id) => DATA.roster.find(m => m.id === id) || null;
+const nameOf = (id) => { const m = byId(id); return m ? m.name : "（未選択）"; };
+
+/* ===========================================================================
+   表示
+   =========================================================================== */
+function render(){
+  const g = DATA.game || {};
+  const root = document.getElementById("root");
+  root.textContent = "";
+  document.title = (DATA.team || "オーダー表") + " オーダー表";
+
+  /* ---- ヘッダー ---- */
+  const hero = el("header","hero");
+  hero.innerHTML =
+    '<svg class="hero__diamond" viewBox="0 0 200 200" aria-hidden="true" fill="none" stroke="#F1EFE3" stroke-width="2">' +
+      '<path d="M100 172 L28 100 L100 28 L172 100 Z"/><path d="M100 172 L100 100"/><path d="M28 100 L172 100"/>' +
+      '<circle cx="100" cy="100" r="16"/><path d="M100 172 L44 44" stroke-dasharray="4 6"/></svg>' +
+    '<div class="wrap hero__inner">' +
+      '<p class="eyebrow">' + esc([g.dateLabel, g.playball ? "PLAY BALL " + g.playball : "", DATA.tagline].filter(Boolean).join(" · ")) + '</p>' +
+      '<h1 class="hero__team">' + esc(DATA.team) + '</h1>' +
+      (g.opponent ? '<p class="hero__vs"><span class="vs">VS</span>' + esc(g.opponent) + '</p>' : '') +
+      (g.ground ? '<p class="hero__ground">📍 ' + esc(g.ground) + '</p>' : '') +
+      '<div class="hero__tools no-print">' +
+        '<button class="btn btn--primary" id="edit-btn" type="button">✏️ 編集する</button>' +
+        '<button class="btn" id="copy-btn" type="button">🔗 URLをコピー</button>' +
+        '<button class="btn" id="print-btn" type="button">🖨 印刷</button>' +
+      '</div>' +
+    '</div>';
+  root.appendChild(hero);
+
+  /* ---- 試合情報 ---- */
+  const facts = el("dl","facts");
+  [["集合", g.gather, g.playball ? "プレイボール " + g.playball : ""],
+   ["対戦相手", g.opponent, ""],
+   ["試合形式", g.format, ""],
+   ["服装", g.uniform, g.weather]].forEach(([k,v,sub]) => {
+    if(!v) return;
+    const d = el("div","fact");
+    d.innerHTML = "<dt>" + esc(k) + "</dt><dd>" + esc(v) + (sub ? " <small>" + esc(sub) + "</small>" : "") + "</dd>";
+    facts.appendChild(d);
+  });
+  if(facts.children.length) root.appendChild(facts);
+
+  const main = el("main","wrap");
+  root.appendChild(main);
+
+  /* ---- スタメン ---- */
+  const s1 = el("section");
+  s1.innerHTML = '<div class="sec-head"><h2>スタメン</h2><p>名前をタップすると紹介にジャンプ</p></div>';
+  const order = el("div","order");
+  DATA.lineup.forEach((p, i) => {
+    const m = byId(p.id) || {};
+    const row = el("button","order__row reveal");
+    row.type = "button";
+    row.style.animationDelay = (i * 45) + "ms";
+    row.setAttribute("aria-label", (i+1) + "番 " + (p.pos||"") + " " + (m.name||"") + " の紹介を見る");
+    row.innerHTML =
+      '<div class="order__no">' + (i+1) + '<small>番</small></div>' +
+      '<div class="pos" data-g="' + (POS_GROUP[p.pos] || "infield") + '">' + esc(p.pos || "―") + '</div>' +
+      '<div><div class="order__name">' + esc(m.name || "（未選択）") +
+        (p.badge ? '<span class="badge">' + esc(p.badge) + '</span>' : '') + '</div>' +
+        (p.note ? '<div class="order__note">' + esc(p.note) + '</div>' : '') + '</div>' +
+      '<div class="order__meta">' +
+        (m.no ? '<span class="jersey">' + esc(m.no) + '</span>' : '') +
+        (m.bat ? '<span class="bat">打' + esc(m.bat) + '</span>' : '') + '</div>';
+    row.addEventListener("click", () => jumpTo(p.id));
+    order.appendChild(row);
+  });
+  s1.appendChild(order);
+
+  const usedIds = DATA.lineup.map(p => p.id);
+  const benchList = DATA.roster.filter(m => usedIds.indexOf(m.id) === -1);
+  if(benchList.length){
+    const bench = el("div","bench");
+    benchList.forEach(m => {
+      const b = el("button","bench__item");
+      b.type = "button";
+      b.innerHTML = (m.no ? '<span class="jersey">' + esc(m.no) + '</span>' : '') + esc(m.name) +
+                    (m.role ? ' <small>' + esc(m.role) + '</small>' : '');
+      b.addEventListener("click", () => jumpTo(m.id));
+      bench.appendChild(b);
+    });
+    s1.appendChild(bench);
+  }
+  main.appendChild(s1);
+
+  /* ---- メンバー紹介 ---- */
+  const s2 = el("section");
+  s2.innerHTML = '<div class="sec-head"><h2>メンバー紹介</h2><p>全' + DATA.roster.length + '名</p></div>';
+  const members = el("div","members");
+  DATA.roster.forEach((m, i) => {
+    const card = el("article","card reveal");
+    card.id = "m-" + m.id;
+    card.style.animationDelay = Math.min(i * 40, 400) + "ms";
+    if(m.no){ const j = el("div","card__jersey"); j.textContent = m.no; card.appendChild(j); }
+    card.appendChild(photoBox(m));
+    const body = el("div","card__body");
+    body.innerHTML =
+      (m.kana ? '<p class="card__kana">' + esc(m.kana) + '</p>' : '') +
+      '<h3 class="card__name">' + esc(m.name) + '</h3>' +
+      (m.role ? '<p class="card__role">' + esc(m.role) + '</p>' : '') +
+      ((m.tags && m.tags.length) ? '<div class="tags">' + m.tags.map(t => '<span class="tag">' + esc(t) + '</span>').join("") + '</div>' : '') +
+      (m.intro ? '<p class="card__intro">' + esc(m.intro) + '</p>' : '');
+    card.appendChild(body);
+    members.appendChild(card);
+  });
+  s2.appendChild(members);
+  main.appendChild(s2);
+
+  /* ---- 連絡事項 ---- */
+  if(DATA.notes && DATA.notes.length){
+    const s3 = el("section");
+    s3.innerHTML = '<div class="sec-head"><h2>集合・持ち物</h2><p>変更があればここを更新します</p></div>';
+    const ul = el("ul","notes");
+    DATA.notes.forEach(n => {
+      const li = el("li");
+      li.innerHTML = "<b>" + esc(n.label) + "</b><span>" + esc(n.text) + "</span>";
+      ul.appendChild(li);
+    });
+    s3.appendChild(ul);
+    main.appendChild(s3);
+  }
+
+  const foot = el("footer");
+  foot.innerHTML = '<span>' + esc(DATA.team) + (DATA.game && DATA.game.dateLabel ? " / " + esc(DATA.game.dateLabel) : "") + '</span>' +
+                   '<span>更新: ' + esc(DATA.updatedAt || "―") + '</span>';
+  main.appendChild(foot);
+
+  document.getElementById("edit-btn").addEventListener("click", openEditor);
+  document.getElementById("copy-btn").addEventListener("click", copyUrl);
+  document.getElementById("print-btn").addEventListener("click", () => window.print());
+}
+
+function photoBox(m){
+  const box = el("div","photo");
+  const fallback = el("div","photo__fallback");
+  fallback.innerHTML = (m.no ? "#" + esc(m.no) : "⚾") + "<span>PHOTO</span>";
+  if(m.photo){
+    const img = el("img");
+    img.src = m.photo;
+    img.alt = m.name || "";
+    img.loading = "lazy";
+    img.addEventListener("error", () => { img.remove(); box.appendChild(fallback); });
+    box.appendChild(img);
+  }else{
+    box.appendChild(fallback);
+  }
+  return box;
+}
+
+function jumpTo(id){
+  const target = document.getElementById("m-" + id);
+  if(!target){ toast("この選手の紹介はまだ登録されていません"); return; }
+  target.scrollIntoView({ behavior:"smooth", block:"center" });
+  target.classList.remove("card--flash");
+  void target.offsetWidth;
+  target.classList.add("card--flash");
+}
+
+/* ===========================================================================
+   編集画面
+   =========================================================================== */
+function openEditor(){
+  DRAFT = clone(DATA);
+  let box = document.getElementById("editor");
+  if(!box){
+    box = el("div","editor");
+    box.id = "editor";
+    document.body.appendChild(box);
+  }
+  box.hidden = false;
+  document.body.style.overflow = "hidden";
+  renderEditor();
+  box.scrollTop = 0;
+}
+function closeEditor(){
+  const box = document.getElementById("editor");
+  if(box) box.hidden = true;
+  document.body.style.overflow = "";
+  DRAFT = null;
+}
+
+function field(label, value, onInput, opts){
+  opts = opts || {};
+  const f = el("div","field");
+  const lab = el("label");
+  lab.textContent = label;
+  let input;
+  if(opts.type === "textarea"){ input = el("textarea"); input.rows = opts.rows || 3; }
+  else if(opts.type === "select"){
+    input = el("select");
+    (opts.options || []).forEach(o => {
+      const op = el("option");
+      op.value = o.value; op.textContent = o.label;
+      input.appendChild(op);
+    });
+  }
+  else { input = el("input"); input.type = "text"; }
+  input.value = value == null ? "" : value;
+  if(opts.placeholder) input.placeholder = opts.placeholder;
+  const id = "f-" + Math.abs(hashStr(label + Math.random()));
+  input.id = id; lab.htmlFor = id;
+  input.addEventListener(opts.type === "select" ? "change" : "input", () => onInput(input.value));
+  f.append(lab, input);
+  return f;
+}
+function hashStr(s){ let h = 0; for(let i=0;i<s.length;i++){ h = (h*31 + s.charCodeAt(i))|0; } return h; }
+
+function toolBtn(label, title, cls, fn){
+  const b = el("button","icon-btn" + (cls ? " " + cls : ""));
+  b.type = "button"; b.textContent = label; b.title = title; b.setAttribute("aria-label", title);
+  b.addEventListener("click", fn);
+  return b;
+}
+function move(arr, i, dir){
+  const j = i + dir;
+  if(j < 0 || j >= arr.length) return;
+  const t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+}
+
+function renderEditor(){
+  const box = document.getElementById("editor");
+  box.textContent = "";
+
+  /* ---- 上部バー ---- */
+  const bar = el("div","editor__bar");
+  const barIn = el("div","wrap");
+  const saveLabel = capArtifact ? "💾 保存して全員に公開" : "💾 保存";
+  barIn.innerHTML = '<div class="editor__title">編集<small>' +
+    (capArtifact ? "保存すると、このURLを見ている全員のページが更新されます" : "保存はこの端末に残ります。全員に反映するには下の「HTMLをダウンロード」") +
+    '</small></div>';
+  const actions = el("div","editor__actions");
+  const cancel = el("button","btn");
+  cancel.type = "button"; cancel.textContent = "キャンセル";
+  cancel.addEventListener("click", closeEditor);
+  const save = el("button","btn btn--primary");
+  save.type = "button"; save.textContent = saveLabel; save.id = "save-btn";
+  save.addEventListener("click", commit);
+  actions.append(cancel, save);
+  barIn.appendChild(actions);
+  bar.appendChild(barIn);
+  box.appendChild(bar);
+
+  const body = el("div","wrap editor__body");
+  box.appendChild(body);
+
+  /* ---- 試合情報 ---- */
+  const g = DRAFT.game = DRAFT.game || {};
+  const s0 = el("section","ed-sec");
+  s0.innerHTML = "<h3>試合情報<span>ヘッダーと上の帯に出ます</span></h3>";
+  const grid = el("div","ed-grid");
+  grid.append(
+    field("チーム名", DRAFT.team, v => DRAFT.team = v),
+    field("ひとこと", DRAFT.tagline, v => DRAFT.tagline = v, {placeholder:"毎週日曜、河川敷集合"}),
+    field("日付の表示", g.dateLabel, v => g.dateLabel = v, {placeholder:"2026.09.13 SUN"}),
+    field("プレイボール", g.playball, v => g.playball = v, {placeholder:"9:00"}),
+    field("集合時間", g.gather, v => g.gather = v, {placeholder:"8:30"}),
+    field("対戦相手", g.opponent, v => g.opponent = v),
+    field("球場・アクセス", g.ground, v => g.ground = v),
+    field("試合形式", g.format, v => g.format = v, {placeholder:"7回 または 90分"}),
+    field("服装", g.uniform, v => g.uniform = v),
+    field("雨天など", g.weather, v => g.weather = v)
+  );
+  s0.appendChild(grid);
+  body.appendChild(s0);
+
+  /* ---- 打順 ---- */
+  const s1 = el("section","ed-sec");
+  s1.innerHTML = "<h3>打順<span>▲▼で入れ替え・番号は自動</span></h3>";
+  const list1 = el("div","ed-list");
+  const rosterOptions = [{value:"",label:"（未選択）"}].concat(
+    DRAFT.roster.map(m => ({ value:m.id, label:(m.no ? "#" + m.no + " " : "") + m.name }))
+  );
+  DRAFT.lineup.forEach((p, i) => {
+    const row = el("div","ed-row");
+    const head = el("div","ed-row__head");
+    const no = el("div","ed-row__no"); no.textContent = (i+1) + "番";
+    const tools = el("div","ed-row__tools");
+    tools.append(
+      toolBtn("↑","1つ上へ","",() => { move(DRAFT.lineup, i, -1); renderEditor(); }),
+      toolBtn("↓","1つ下へ","",() => { move(DRAFT.lineup, i, 1); renderEditor(); }),
+      toolBtn("×","この打順を削除","icon-btn--danger",() => { DRAFT.lineup.splice(i,1); renderEditor(); })
+    );
+    head.append(no, tools);
+    const cols = el("div","ed-row__cols");
+    cols.append(
+      field("選手", p.id, v => { p.id = v; }, {type:"select", options:rosterOptions}),
+      field("守備位置", p.pos, v => { p.pos = v; }, {type:"select", options:POS_LIST.map(x => ({value:x,label:x}))})
+    );
+    const cols2 = el("div","ed-row__cols");
+    cols2.append(
+      field("一言コメント", p.note, v => { p.note = v; }, {placeholder:"出塁率お化け"}),
+      field("肩書き（任意）", p.badge, v => { p.badge = v; }, {placeholder:"主将 / 代打"})
+    );
+    row.append(head, cols, cols2);
+    list1.appendChild(row);
+  });
+  s1.appendChild(list1);
+  const add1 = el("button","add-btn");
+  add1.type = "button"; add1.textContent = "＋ 打者を追加";
+  add1.addEventListener("click", () => {
+    DRAFT.lineup.push({ id:"", pos:POS_LIST[0], note:"" });
+    renderEditor();
+  });
+  s1.appendChild(add1);
+  const hint1 = el("p","ed-hint");
+  hint1.textContent = "打順に入れなかったメンバーは、自動的に「控え」として表示されます。";
+  s1.appendChild(hint1);
+  body.appendChild(s1);
+
+  /* ---- メンバー名簿 ---- */
+  const s2 = el("section","ed-sec");
+  s2.innerHTML = "<h3>メンバー名簿<span>写真はここから選ぶだけ</span></h3>";
+  const list2 = el("div","ed-list");
+  DRAFT.roster.forEach((m, i) => {
+    const row = el("div","ed-row");
+
+    const head = el("div","ed-row__head");
+    const nm = el("div","ed-row__no");
+    nm.style.fontFamily = "inherit"; nm.style.fontSize = "1rem"; nm.style.color = "var(--ink-2)";
+    nm.textContent = m.name || "（新しいメンバー）";
+    const tools = el("div","ed-row__tools");
+    tools.append(
+      toolBtn("↑","1つ上へ","",() => { move(DRAFT.roster, i, -1); renderEditor(); }),
+      toolBtn("↓","1つ下へ","",() => { move(DRAFT.roster, i, 1); renderEditor(); }),
+      toolBtn("×","このメンバーを削除","icon-btn--danger",() => {
+        if(!confirm((m.name || "このメンバー") + " を名簿から削除しますか？")) return;
+        DRAFT.lineup = DRAFT.lineup.filter(p => p.id !== m.id);
+        DRAFT.roster.splice(i,1);
+        renderEditor();
+      })
+    );
+    head.append(nm, tools);
+    row.appendChild(head);
+
+    const wrap2 = el("div","ed-member");
+    /* 写真 */
+    const photoCol = el("div","ed-photo");
+    photoCol.appendChild(photoBox(m));
+    const btns = el("div","ed-photo__btns");
+    const pick = el("button","btn-s");
+    pick.type = "button"; pick.textContent = m.photo ? "写真を変える" : "写真を選ぶ";
+    const file = el("input");
+    file.type = "file"; file.accept = "image/*"; file.hidden = true;
+    file.addEventListener("change", async () => {
+      const f = file.files && file.files[0];
+      if(!f) return;
+      pick.textContent = "読み込み中…";
+      try{
+        m.photo = await shrinkImage(f);
+        renderEditor();
+        toast("写真を読み込みました。保存を忘れずに");
+      }catch(e){
+        pick.textContent = "写真を選ぶ";
+        toast("この画像は読み込めませんでした");
+      }
+    });
+    pick.addEventListener("click", () => file.click());
+    btns.append(pick, file);
+    if(m.photo){
+      const del = el("button","btn-s btn-s--danger");
+      del.type = "button"; del.textContent = "写真を削除";
+      del.addEventListener("click", () => { m.photo = ""; renderEditor(); });
+      btns.appendChild(del);
+    }
+    photoCol.appendChild(btns);
+    wrap2.appendChild(photoCol);
+
+    /* 文字情報 */
+    const info = el("div");
+    info.style.display = "grid"; info.style.gap = "10px";
+    const c1 = el("div","ed-row__cols");
+    c1.append(
+      field("名前", m.name, v => { m.name = v; }),
+      field("ローマ字（任意）", m.kana, v => { m.kana = v; }, {placeholder:"TSUJI RYOTA"})
+    );
+    const c2 = el("div","ed-row__cols");
+    c2.append(
+      field("背番号", m.no, v => { m.no = v; }, {placeholder:"5"}),
+      field("打席", m.bat, v => { m.bat = v; }, {type:"select", options:BAT_LIST.map(x => ({value:x,label:x}))})
+    );
+    info.append(
+      c1, c2,
+      field("ポジション・投打", m.role, v => { m.role = v; }, {placeholder:"三塁手 / 打右投右"}),
+      field("タグ（カンマ区切り）", (m.tags || []).join(", "), v => {
+        m.tags = v.split(/[,、]/).map(s => s.trim()).filter(Boolean);
+      }, {placeholder:"主将, 盗塁王"}),
+      field("紹介文", m.intro, v => { m.intro = v; }, {type:"textarea", rows:3, placeholder:"どんな選手か2〜3文で"})
+    );
+    wrap2.appendChild(info);
+    row.appendChild(wrap2);
+    list2.appendChild(row);
+  });
+  s2.appendChild(list2);
+  const add2 = el("button","add-btn");
+  add2.type = "button"; add2.textContent = "＋ メンバーを追加";
+  add2.addEventListener("click", () => {
+    DRAFT.roster.push({ id:newId(), name:"", kana:"", no:"", role:"", bat:"右", photo:"", tags:[], intro:"" });
+    renderEditor();
+    const box2 = document.getElementById("editor");
+    box2.scrollTo({ top: box2.scrollHeight, behavior:"smooth" });
+  });
+  s2.appendChild(add2);
+  body.appendChild(s2);
+
+  /* ---- 連絡事項 ---- */
+  const s3 = el("section","ed-sec");
+  s3.innerHTML = "<h3>集合・持ち物<span>見出しと本文の2列</span></h3>";
+  const list3 = el("div","ed-list");
+  (DRAFT.notes || []).forEach((n, i) => {
+    const row = el("div","ed-row");
+    const head = el("div","ed-row__head");
+    const lab = el("div","ed-row__no");
+    lab.style.fontFamily = "inherit"; lab.style.fontSize = "1rem"; lab.style.color = "var(--ink-2)";
+    lab.textContent = n.label || "（項目）";
+    const tools = el("div","ed-row__tools");
+    tools.append(
+      toolBtn("↑","1つ上へ","",() => { move(DRAFT.notes, i, -1); renderEditor(); }),
+      toolBtn("↓","1つ下へ","",() => { move(DRAFT.notes, i, 1); renderEditor(); }),
+      toolBtn("×","この項目を削除","icon-btn--danger",() => { DRAFT.notes.splice(i,1); renderEditor(); })
+    );
+    head.append(lab, tools);
+    const cols = el("div","ed-row__cols");
+    cols.style.gridTemplateColumns = "140px minmax(0,1fr)";
+    cols.append(
+      field("見出し", n.label, v => { n.label = v; }, {placeholder:"持ち物"}),
+      field("内容", n.text, v => { n.text = v; })
+    );
+    row.append(head, cols);
+    list3.appendChild(row);
+  });
+  s3.appendChild(list3);
+  const add3 = el("button","add-btn");
+  add3.type = "button"; add3.textContent = "＋ 項目を追加";
+  add3.addEventListener("click", () => {
+    DRAFT.notes = DRAFT.notes || [];
+    DRAFT.notes.push({ label:"", text:"" });
+    renderEditor();
+  });
+  s3.appendChild(add3);
+  body.appendChild(s3);
+
+  /* ---- 書き出し ---- */
+  const foot = el("div","ed-foot");
+  const dl = el("button","btn-s");
+  dl.type = "button"; dl.textContent = "⬇ HTMLをダウンロード";
+  dl.title = "編集内容を入れたページファイルを保存します（index.html として差し替え可）";
+  dl.addEventListener("click", downloadHtml);
+  const cp = el("button","btn-s");
+  cp.type = "button"; cp.textContent = "📋 データ(JSON)をコピー";
+  cp.addEventListener("click", async () => {
+    try{ await navigator.clipboard.writeText(JSON.stringify(DRAFT, null, 2)); toast("データをコピーしました"); }
+    catch(e){ toast("コピーできませんでした"); }
+  });
+  const reset = el("button","btn-s btn-s--danger");
+  reset.type = "button"; reset.textContent = "↺ この端末の下書きを消す";
+  reset.addEventListener("click", () => {
+    try{ localStorage.removeItem(LS_KEY); }catch(e){}
+    toast("下書きを消しました。再読み込みすると公開中の内容に戻ります");
+  });
+  foot.append(dl, cp, reset);
+  body.appendChild(foot);
+}
+
+function newId(){
+  let max = 0;
+  DRAFT.roster.forEach(m => {
+    const n = parseInt(String(m.id).replace(/[^0-9]/g,""), 10);
+    if(!isNaN(n) && n > max) max = n;
+  });
+  return "m" + (max + 1);
+}
+
+/* 画像を縮小して data URI にする（ページに埋め込むため） */
+function shrinkImage(file, max){
+  max = max || 760;
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, max / Math.max(img.width, img.height));
+      const w = Math.max(1, Math.round(img.width * scale));
+      const h = Math.max(1, Math.round(img.height * scale));
+      const cv = el("canvas");
+      cv.width = w; cv.height = h;
+      cv.getContext("2d").drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      try{ resolve(cv.toDataURL("image/jpeg", 0.82)); }
+      catch(e){ reject(e); }
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("decode failed")); };
+    img.src = url;
+  });
+}
+
+/* ===========================================================================
+   保存
+   =========================================================================== */
+function buildDocument(data){
+  const css = document.getElementById("css").textContent;
+  const app = document.getElementById("app").textContent;
+  const json = JSON.stringify(data, null, 2).replace(/</g, "\\u003c");
+  const title = esc((data.team || "オーダー表") + " オーダー表");
+  const desc = esc((data.team || "") + "の草野球オーダー表。打順・守備位置・メンバー紹介を写真つきで共有します。");
+  return [
+    "<!DOCTYPE html>",
+    '<html lang="ja">',
+    "<head>",
+    '<meta charset="UTF-8">',
+    '<meta name="viewport" content="width=device-width, initial-scale=1.0">',
+    "<title>" + title + "<\/title>",
+    '<meta name="description" content="' + desc + '">',
+    '<meta property="og:title" content="⚾ ' + title + '">',
+    '<meta property="og:description" content="' + desc + '">',
+    '<meta property="og:type" content="website">',
+    '<link rel="preconnect" href="https://fonts.googleapis.com">',
+    '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>',
+    FONT_LINK,
+    '<style id="css">' + css + "<\/style>",
+    "</head>",
+    "<body>",
+    '<div id="root"></div>',
+    '<script type="application/json" id="team-data">',
+    json,
+    "<\/script>",
+    '<script id="app">',
+    app,
+    "<\/script>",
+    "</body>",
+    "</html>"
+  ].join("\n");
+}
+
+async function commit(){
+  const save = document.getElementById("save-btn");
+  /* 空の打順・名前なしメンバーの掃除 */
+  DRAFT.roster = DRAFT.roster.filter(m => (m.name || "").trim() !== "");
+  const ids = DRAFT.roster.map(m => m.id);
+  DRAFT.lineup = DRAFT.lineup.filter(p => ids.indexOf(p.id) !== -1);
+  DRAFT.notes = (DRAFT.notes || []).filter(n => (n.label || n.text || "").trim() !== "");
+  DRAFT.updatedAt = todayLabel();
+  DRAFT.savedAt = new Date().toISOString();
+
+  DATA = clone(DRAFT);
+  render();
+
+  /* 端末に控えを残す（公開に失敗しても入力が消えないように） */
+  try{ localStorage.setItem(LS_KEY, JSON.stringify({ base: embeddedStamp(), data: DATA })); }catch(e){}
+
+  if(capArtifact){
+    if(save){ save.classList.add("saving"); save.textContent = "保存中…"; }
+    try{
+      await capArtifact.publish(buildDocument(DATA));
+      /* 成功すると全員のページが新しい版に切り替わります */
+      closeEditor();
+      toast("保存しました。全員に公開されます");
+      return;
+    }catch(e){
+      const code = e && e.code;
+      if(code === "conflict"){
+        toast("ほかの人が先に保存しました。読み込み直します");
+        setTimeout(() => location.reload(), 1600);
+        return;
+      }
+      if(save){ save.classList.remove("saving"); save.textContent = "💾 保存して全員に公開"; }
+      closeEditor();
+      toast(code === "not_writer" || code === "not_granted"
+        ? "このページを更新できる権限がありません。内容はこの端末にだけ保存しました"
+        : "公開に失敗しました。内容はこの端末に保存しています");
+      return;
+    }
+  }
+  closeEditor();
+  toast("保存しました（この端末のみ）。全員に反映するには HTMLをダウンロード");
+}
+
+async function downloadHtml(){
+  const data = DRAFT ? DRAFT : DATA;
+  const html = buildDocument(data);
+  const filename = "index.html";
+  if(capDownloads){
+    try{ await capDownloads.save({ filename: filename, data: html }); toast("ファイルを保存しました"); }
+    catch(e){ toast("保存はキャンセルされました"); }
+    return;
+  }
+  try{
+    const blob = new Blob([html], { type:"text/html" });
+    const a = el("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+    toast("index.html をダウンロードしました");
+  }catch(e){
+    toast("ダウンロードできませんでした");
+  }
+}
+
+/* ===========================================================================
+   その他
+   =========================================================================== */
+async function copyUrl(){
+  const url = location.href;
+  try{
+    await navigator.clipboard.writeText(url);
+    toast("URLをコピーしました");
+  }catch(e){
+    const ta = el("textarea");
+    ta.value = url; ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select();
+    let ok = false;
+    try{ ok = document.execCommand("copy"); }catch(e2){}
+    ta.remove();
+    toast(ok ? "URLをコピーしました" : "アドレスバーからコピーしてください");
+  }
+}
+
+let toastTimer;
+function toast(msg){
+  let t = document.getElementById("toast");
+  if(!t){
+    t = el("div","toast");
+    t.id = "toast";
+    t.setAttribute("role","status");
+    t.setAttribute("aria-live","polite");
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2600);
+}
+
+document.addEventListener("keydown", (e) => {
+  if(e.key === "Escape"){
+    const box = document.getElementById("editor");
+    if(box && !box.hidden) closeEditor();
+  }
+});
+
+render();
+
+/* Artifact として公開されている場合は「全員に公開」で保存できる */
+if(window.claude && typeof window.claude.use === "function"){
+  window.claude.use("artifact").then(ns => {
+    capArtifact = ns || null;
+    const box = document.getElementById("editor");
+    if(capArtifact && box && !box.hidden) renderEditor();
+  }).catch(() => {});
+  window.claude.use("downloads").then(ns => { capDownloads = ns || null; }).catch(() => {});
+}
+</script>
+</body>
+</html>
