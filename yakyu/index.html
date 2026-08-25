@@ -63,13 +63,14 @@ button{font:inherit;color:inherit}
 /* ---------- ヘッダー ---------- */
 .hero{background:var(--header-bg);color:var(--header-ink);position:relative;overflow:hidden}
 .hero__diamond{position:absolute;right:-40px;top:-20px;width:340px;height:340px;opacity:.16;pointer-events:none}
-.hero__inner{position:relative;padding:34px 0 30px}
+.hero__inner{position:relative;padding-top:34px;padding-bottom:30px}  /* .wrap の左右余白を消さないよう上下だけ指定 */
 .eyebrow{font-size:.78rem;font-weight:700;letter-spacing:.18em;color:var(--header-ink-2)}
 .hero__team{font-weight:900;font-size:clamp(2.1rem,7vw,3.4rem);line-height:1.08;letter-spacing:-.01em;margin:.28em 0 .1em;text-wrap:balance}
 .hero__vs{display:flex;align-items:baseline;gap:.55em;flex-wrap:wrap;font-size:clamp(1rem,3.4vw,1.25rem);font-weight:700}
 .hero__vs .vs{font-family:"Saira Condensed",sans-serif;font-weight:900;font-size:1.5em;color:var(--header-ink-2);letter-spacing:.02em}
 .hero__ground{margin-top:.5em;color:var(--header-ink-2);font-size:.95rem;font-weight:500}
 .hero__tools{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap}
+@media (max-width:600px){.hero__diamond{width:230px;right:-56px;top:-8px;opacity:.12}}
 .btn{
   font-size:.85rem;font-weight:700;cursor:pointer;background:transparent;color:var(--header-ink);
   border:1.5px solid rgba(241,239,227,.38);border-radius:999px;padding:.45em 1.1em;
