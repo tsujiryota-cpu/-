@@ -240,6 +240,36 @@ section{margin-top:44px}
 .notes span{font-size:.94rem;font-weight:500;white-space:pre-line}
 @media (max-width:520px){.notes li{grid-template-columns:1fr;gap:2px}}
 
+/* ---------- 注意書き & 物申すボタン ---------- */
+.disclaimer{
+  margin-top:16px;background:var(--panel);border:1px solid var(--rule-strong);border-radius:8px;
+  padding:16px 18px;box-shadow:var(--shadow);
+}
+.disclaimer p{font-size:.86rem;color:var(--ink-2);line-height:1.85;white-space:pre-line}
+.protest__wrap{display:flex;justify-content:center;margin-top:16px}
+.protest{
+  font-weight:900;font-size:1.02rem;letter-spacing:.1em;color:#FFF4EF;cursor:pointer;
+  background:linear-gradient(180deg,#D4452F,#A32A1B);
+  border:2px solid #F0A090;border-radius:999px;padding:.6em 2em;
+  box-shadow:0 3px 0 #6E1A10, 0 12px 20px -14px rgba(0,0,0,.7);
+  text-shadow:0 1px 0 rgba(0,0,0,.35);
+  transition:filter .16s ease, transform .1s ease, box-shadow .1s ease;
+}
+.protest:hover{filter:brightness(1.08)}
+.protest:active{transform:translateY(3px);box-shadow:0 0 0 #6E1A10}
+.protest-video{
+  max-width:640px;margin:16px auto 0;border:2px solid var(--rule-strong);border-radius:10px;
+  overflow:hidden;background:#000;box-shadow:0 16px 34px -24px rgba(0,0,0,.8);
+  animation:pop .38s cubic-bezier(.2,.8,.3,1);
+}
+.protest-video[hidden]{display:none}
+.protest-video video{display:block;width:100%;height:auto}
+.protest-video__foot{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 10px;background:var(--chip);font-size:.72rem;font-weight:700;color:var(--ink-3)}
+.protest-close{font-size:.72rem;font-weight:700;color:var(--ink-2);background:transparent;border:1px solid var(--rule-strong);border-radius:5px;padding:.25em .7em;cursor:pointer}
+.protest-close:hover{border-color:var(--red);color:var(--red)}
+@keyframes pop{from{opacity:0;transform:scale(.96) translateY(8px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.protest-video{animation:none}}
+
 footer{margin:52px 0 40px;padding-top:18px;border-top:1px solid var(--rule);font-size:.8rem;color:var(--ink-3);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
 
 /* ---------- トースト ---------- */
@@ -867,7 +897,14 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
     }
   ],
   "updatedAt": "2026.08.28",
-  "savedAt": "2026-08-28T14:00:00.000Z"
+  "savedAt": "2026-08-28T14:30:00.000Z",
+  "disclaimer": {
+    "title": "能力値について",
+    "text": "※ 各選手の能力ランク・弾道・特殊能力は、すべてAIが独断で決めています。実際の実力とは一切関係ありません。\n※ 査定への文句・異議・苦情は一切受け付けておりません。\n※ どうしても言いたいことがある方は、下のボタンからどうぞ。",
+    "button": "物申す",
+    "video": "monomousu.mp4",
+    "videoWebm": "monomousu.webm"
+  }
 }
 </script>
 
@@ -896,6 +933,13 @@ const RANKS = ["","S","A","B","C","D","E","F","G"];
 const TRAJ = ["","1","2","3","4"];
 const FONT_LINK = '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;700;900&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap">';
 const LS_KEY = "yakyu-order-sheet";
+/* 能力値の注意書き（DATA.disclaimer で上書き可能） */
+const DEFAULT_DISCLAIMER = {
+  title: "能力値について",
+  text: "※ 各選手の能力ランク・弾道・特殊能力は、すべてAIが独断で決めています。実際の実力とは一切関係ありません。\n※ 査定への文句・異議・苦情は一切受け付けておりません。\n※ どうしても言いたいことがある方は、下のボタンからどうぞ。",
+  button: "物申す",
+  video: ""
+};
 
 /* ---------- 小道具 ---------- */
 const el = (tag, cls) => { const n = document.createElement(tag); if(cls) n.className = cls; return n; };
@@ -1061,6 +1105,55 @@ function render(){
     });
     s3.appendChild(ul);
     main.appendChild(s3);
+  }
+
+  /* ---- 注意書き & 物申す ---- */
+  const dc = Object.assign({}, DEFAULT_DISCLAIMER, DATA.disclaimer || {});
+  if(dc.text){
+    const s4 = el("section");
+    s4.innerHTML = '<div class="sec-head"><h2>' + esc(dc.title || "注意書き") + '</h2><p>査定はAI担当です</p></div>';
+    const box = el("div","disclaimer");
+    box.innerHTML = '<p>' + esc(dc.text) + '</p>';
+    if(dc.video){
+      const wrap = el("div","protest__wrap");
+      const btn = el("button","protest");
+      btn.type = "button";
+      btn.textContent = dc.button || "物申す";
+      wrap.appendChild(btn);
+      box.appendChild(wrap);
+
+      const player = el("div","protest-video");
+      player.hidden = true;
+      const vid = el("video");
+      vid.setAttribute("playsinline","");
+      vid.preload = "none";
+      vid.controls = true;
+      /* mp4(H.264) が使えない環境向けに WebM も用意 */
+      [[dc.video, "video/mp4"], [dc.videoWebm, "video/webm"]].forEach(([src, type]) => {
+        if(!src) return;
+        const so = el("source");
+        so.src = src; so.type = type;
+        vid.appendChild(so);
+      });
+      const vfoot = el("div","protest-video__foot");
+      const close = el("button","protest-close");
+      close.type = "button"; close.textContent = "閉じる";
+      close.addEventListener("click", () => { vid.pause(); player.hidden = true; });
+      vfoot.innerHTML = '<span>以上が、査定に対する公式回答です</span>';
+      vfoot.appendChild(close);
+      player.append(vid, vfoot);
+      box.appendChild(player);
+
+      btn.addEventListener("click", () => {
+        player.hidden = false;
+        try{ vid.currentTime = 0; }catch(e){}
+        const play = vid.play();
+        if(play && play.catch) play.catch(() => toast("再生できませんでした。▶を押してください"));
+        player.scrollIntoView({ behavior:"smooth", block:"center" });
+      });
+    }
+    s4.appendChild(box);
+    main.appendChild(s4);
   }
 
   const foot = el("footer");
@@ -1423,6 +1516,24 @@ function renderEditor(){
   });
   s3.appendChild(add3);
   body.appendChild(s3);
+
+  /* ---- 注意書き ---- */
+  const s5 = el("section","ed-sec");
+  s5.innerHTML = "<h3>注意書き<span>能力値についての一言</span></h3>";
+  DRAFT.disclaimer = Object.assign({}, DEFAULT_DISCLAIMER, DRAFT.disclaimer || {});
+  const dcRow = el("div","ed-row");
+  dcRow.append(
+    field("見出し", DRAFT.disclaimer.title, v => { DRAFT.disclaimer.title = v; }),
+    field("本文", DRAFT.disclaimer.text, v => { DRAFT.disclaimer.text = v; }, {type:"textarea", rows:4}),
+    field("ボタンの文言", DRAFT.disclaimer.button, v => { DRAFT.disclaimer.button = v; }, {placeholder:"物申す"})
+  );
+  const dcList = el("div","ed-list");
+  dcList.appendChild(dcRow);
+  s5.appendChild(dcList);
+  const dcHint = el("p","ed-hint");
+  dcHint.textContent = "ボタンを押したときに流れる動画はファイルで設定しています（この画面では変更できません）。";
+  s5.appendChild(dcHint);
+  body.appendChild(s5);
 
   /* ---- 書き出し ---- */
   const foot = el("div","ed-foot");
