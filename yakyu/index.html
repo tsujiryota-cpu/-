@@ -146,6 +146,92 @@ section{margin-top:44px}
 @keyframes flash{0%,40%{background:var(--flash)}100%{background:var(--panel)}}
 @media (max-width:600px){.card{grid-template-columns:104px minmax(0,1fr);gap:12px}.card__body{padding-right:26px}.card__jersey{font-size:2.6rem;right:8px}}  /* 狭い画面では本文を広げてタグの折り返しを減らす */
 
+/* ---------- パワプロ風オーダーパネル ---------- */
+:root{ --good-fg:#1B5FA8; --good-bd:#7FA9DC; --bad-fg:#A8352A; --bad-bd:#DE9A92; }
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ --good-fg:#8CC6FF; --good-bd:#3C7FD0; --bad-fg:#FF9C8B; --bad-bd:#C0453A; }
+}
+:root[data-theme="dark"]{ --good-fg:#8CC6FF; --good-bd:#3C7FD0; --bad-fg:#FF9C8B; --bad-bd:#C0453A; }
+
+/* パネル本体（ライト/ダーク共通で「ゲーム画面」として濃色） */
+.order{
+  background:linear-gradient(180deg,#1E3055 0%,#111E3B 100%);
+  border:2px solid #3E5F96;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.16), 0 14px 30px -22px rgba(0,0,0,.8);
+  color:#EDF2FA;
+}
+.order__head{
+  display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;
+  padding:7px 14px;background:linear-gradient(180deg,#2B4675,#1A2C54);
+  border-bottom:2px solid #3E5F96;
+  font-family:"Saira Condensed",sans-serif;font-weight:900;font-size:1rem;letter-spacing:.14em;color:#F7CE55;
+}
+.order__head span{
+  font-family:"Zen Kaku Gothic New",sans-serif;font-weight:700;font-size:.66rem;
+  letter-spacing:.04em;color:#9FB6D9;
+}
+.order .order__row{border-bottom:1px solid rgba(255,255,255,.12)}
+.order .order__row:nth-of-type(even){background:rgba(255,255,255,.045)}
+.order .order__row:hover{background:rgba(247,206,85,.14)}
+.order .order__no{color:#F7CE55;text-shadow:0 2px 0 rgba(0,0,0,.55)}
+.order .order__no small{color:#9FB6D9}
+.order .pos{border:1.5px solid rgba(255,255,255,.55);box-shadow:0 2px 0 rgba(0,0,0,.4)}
+.order .order__name{color:#fff;text-shadow:0 1px 0 rgba(0,0,0,.5)}
+.order .order__name .badge{color:#F7CE55}
+.order .order__note{color:#A9C0E0}
+.order .order__meta{color:#A9C0E0}
+.order .order__meta .jersey{color:#fff;text-shadow:0 2px 0 rgba(0,0,0,.5)}
+.order .bat{border-color:rgba(255,255,255,.45);color:#D6E2F4}
+.order .rank{color:#9FB6D9}
+.order .skill--good{color:#8CC6FF;border-color:#3C7FD0;background:rgba(60,127,208,.2)}
+.order .skill--bad{color:#FF9C8B;border-color:#C0453A;background:rgba(192,69,58,.2)}
+.order .traj{color:#9FB6D9}
+
+/* 能力ランク */
+.ranks{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
+.rank{display:inline-flex;align-items:center;gap:2px;font-size:.62rem;font-weight:700;color:var(--ink-3);letter-spacing:.02em}
+.rank b{
+  font-family:"Saira Condensed",sans-serif;font-size:.95rem;font-weight:900;line-height:1.15;
+  min-width:1.35em;text-align:center;padding:0 .18em;border-radius:3px;
+  color:#fff;text-shadow:0 1px 0 rgba(0,0,0,.45);
+}
+.rank b[data-r="S"]{background:#FF3B30;box-shadow:0 0 0 1.5px #F7CE55}
+.rank b[data-r="A"]{background:#EE3B2B}
+.rank b[data-r="B"]{background:#F0821C}
+.rank b[data-r="C"]{background:#F2C230;color:#2A2410;text-shadow:none}
+.rank b[data-r="D"]{background:#3AA249}
+.rank b[data-r="E"]{background:#2E7DD1}
+.rank b[data-r="F"]{background:#8A5CD6}
+.rank b[data-r="G"]{background:#7C8698}
+.traj{display:inline-flex;align-items:center;gap:3px;font-size:.62rem;font-weight:700;color:var(--ink-3)}
+.traj b{font-family:"Saira Condensed",sans-serif;font-size:.95rem;font-weight:900;color:var(--ink)}
+.order .traj b{color:#fff}
+
+/* 特殊能力（青特・赤特） */
+.skills{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
+.skill{font-size:.66rem;font-weight:700;border-radius:3px;padding:.05em .45em;border:1.5px solid;line-height:1.6}
+.skill--good{color:var(--good-fg);border-color:var(--good-bd);background:rgba(46,125,209,.1)}
+.skill--bad{color:var(--bad-fg);border-color:var(--bad-bd);background:rgba(190,58,43,.1)}
+
+/* メンバーカードの能力欄 */
+.abil{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:.5em}
+.abil .ranks{margin-top:0}
+
+/* 編集画面の能力入力 */
+/* 狭い画面では能力ランクを1行に収める */
+@media (max-width:600px){
+  .order .order__row{grid-template-columns:44px 36px minmax(0,1fr) auto;gap:9px;padding:10px 10px}
+  .order .ranks{gap:3px}
+  .order .rank{font-size:.55rem;gap:1px}
+  .order .rank b{font-size:.82rem;min-width:1.2em;padding:0 .1em}
+  .order .pos{width:36px;height:36px;font-size:.98rem}
+  .order .order__meta{gap:6px}
+  .order .skill{font-size:.62rem;padding:.05em .35em}
+}
+
+.ed-sub{font-size:.7rem;font-weight:700;letter-spacing:.1em;color:var(--ink-3);margin-top:2px}
+.ed-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(72px,1fr));gap:6px}
+
 /* ---------- 連絡事項 ---------- */
 .notes{margin-top:16px;background:var(--panel);border:1px solid var(--rule-strong);border-radius:8px;padding:6px 18px}
 .notes li{list-style:none;padding:11px 0;border-bottom:1px solid var(--rule);display:grid;grid-template-columns:96px minmax(0,1fr);gap:12px;align-items:baseline}
@@ -244,36 +330,435 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
     "weather": "雨天中止（当日7:00にLINEで連絡）"
   },
   "roster": [
-    { "id":"m1",  "name":"田中 陽介",   "kana":"TANAKA YOSUKE",     "no":"7",  "role":"外野手 / 打右投左", "bat":"左", "photo":"", "tags":["四球王","遅刻ゼロ"], "intro":"3年連続でチーム最多出塁。とにかく粘って球数を投げさせるのが仕事。守備は中堅から声が飛んでくるので安心して任せられます。" },
-    { "id":"m2",  "name":"佐々木 亮",   "kana":"SASAKI RYO",        "no":"6",  "role":"遊撃手 / 打右投右", "bat":"右", "photo":"", "tags":["バント職人","守備の要"], "intro":"送りバントの成功率がとても高く、走者が出た時の頼れる2番。ショートの正面のゴロはまず抜けません。" },
-    { "id":"m3",  "name":"村上 健太",   "kana":"MURAKAMI KENTA",    "no":"9",  "role":"外野手 / 打左投右", "bat":"左", "photo":"", "tags":["広角打法","元高校球児"], "intro":"高校まで野球部。左右に打ち分けられるので走者を進めるのが得意。ライトからの返球は一直線です。" },
-    { "id":"m4",  "name":"辻 涼太",     "kana":"TSUJI RYOTA",       "no":"5",  "role":"三塁手 / 打右投右", "bat":"右", "photo":"", "tags":["主将","グラウンド予約係"], "intro":"キャプテン。グラウンド確保から審判の手配まで担当。打席では「思い切り振る」以外の作戦を持ち合わせていません。" },
-    { "id":"m5",  "name":"大森 拓海",   "kana":"OMORI TAKUMI",      "no":"33", "role":"一塁手 / 打右投右", "bat":"右", "photo":"", "tags":["チーム唯一の柵越え","筋トレ勢"], "intro":"当たれば飛ぶ。今季すでに柵越え2本。一塁の守備も無難で、悪送球をよく拾ってくれます。" },
-    { "id":"m6",  "name":"井上 慎吾",   "kana":"INOUE SHINGO",      "no":"10", "role":"捕手 / 打右投右",   "bat":"右", "photo":"", "tags":["声出し担当","配球係"], "intro":"投手のクセを全部把握している頭脳派キャッチャー。試合中いちばんよく喋っている人。道具の管理もお願いしています。" },
-    { "id":"m7",  "name":"高橋 直人",   "kana":"TAKAHASHI NAOTO",   "no":"23", "role":"外野手 / 打右投右", "bat":"右", "photo":"", "tags":["盗塁王","陸上部出身"], "intro":"出塁したら走ります。今季の盗塁成功率は9割。守備範囲も広く、レフト線の当たりは追いつきます。" },
-    { "id":"m8",  "name":"小林 優",     "kana":"KOBAYASHI YU",      "no":"4",  "role":"二塁手 / 打右投右", "bat":"右", "photo":"", "tags":["堅守","スコア記録"], "intro":"ダブルプレーの起点。派手さはないけれど、二塁を任せると失点が減ります。スコアブックも書けます。" },
-    { "id":"m9",  "name":"渡辺 慶太",   "kana":"WATANABE KEITA",    "no":"18", "role":"投手 / 打右投右",   "bat":"右", "photo":"", "tags":["先発","技巧派"], "intro":"速球で押すタイプではなく、緩急で打ち取る先発。3回までは安定するので、そこまでに点を取りたいところ。" },
-    { "id":"m10", "name":"森本 大地",   "kana":"MORIMOTO DAICHI",   "no":"11", "role":"投手 / 打左投左",   "bat":"左", "photo":"", "tags":["2番手","サウスポー"], "intro":"4回以降のリリーフ担当。角度のあるボールで右打者を詰まらせます。打席では意外とバットに当たります。" },
-    { "id":"m11", "name":"岡田 蓮",     "kana":"OKADA REN",         "no":"2",  "role":"内野手・代走 / 打右投右", "bat":"右", "photo":"", "tags":["代走","ユーティリティ","最年少"], "intro":"内野ならどこでも守れる便利屋。終盤の代走で1点をもぎ取る役割。チーム最年少で元気だけは無限にあります。" },
-    { "id":"m12", "name":"石川 悠",     "kana":"ISHIKAWA YU",       "no":"25", "role":"外野手・代打 / 打左投右", "bat":"左", "photo":"", "tags":["代打","写真係"], "intro":"ここで一本欲しい場面の代打。狙い球を絞って振り抜くスタイル。試合の写真はだいたいこの人が撮っています。" }
+    {
+      "id": "m1",
+      "name": "田中 陽介",
+      "kana": "TANAKA YOSUKE",
+      "no": "7",
+      "role": "外野手 / 打右投左",
+      "bat": "左",
+      "photo": "",
+      "tags": [
+        "四球王",
+        "遅刻ゼロ"
+      ],
+      "intro": "3年連続でチーム最多出塁。とにかく粘って球数を投げさせるのが仕事。守備は中堅から声が飛んでくるので安心して任せられます。",
+      "stats": {
+        "traj": "1",
+        "meet": "A",
+        "power": "D",
+        "speed": "B",
+        "arm": "C",
+        "field": "B",
+        "catch": "C"
+      },
+      "skills": {
+        "good": [
+          "選球眼",
+          "盗塁○"
+        ],
+        "bad": []
+      }
+    },
+    {
+      "id": "m2",
+      "name": "佐々木 亮",
+      "kana": "SASAKI RYO",
+      "no": "6",
+      "role": "遊撃手 / 打右投右",
+      "bat": "右",
+      "photo": "",
+      "tags": [
+        "バント職人",
+        "守備の要"
+      ],
+      "intro": "送りバントの成功率がとても高く、走者が出た時の頼れる2番。ショートの正面のゴロはまず抜けません。",
+      "stats": {
+        "traj": "1",
+        "meet": "B",
+        "power": "D",
+        "speed": "C",
+        "arm": "B",
+        "field": "B",
+        "catch": "C"
+      },
+      "skills": {
+        "good": [
+          "バント○",
+          "内野安打○"
+        ],
+        "bad": []
+      }
+    },
+    {
+      "id": "m3",
+      "name": "村上 健太",
+      "kana": "MURAKAMI KENTA",
+      "no": "9",
+      "role": "外野手 / 打左投右",
+      "bat": "左",
+      "photo": "",
+      "tags": [
+        "広角打法",
+        "元高校球児"
+      ],
+      "intro": "高校まで野球部。左右に打ち分けられるので走者を進めるのが得意。ライトからの返球は一直線です。",
+      "stats": {
+        "traj": "2",
+        "meet": "B",
+        "power": "C",
+        "speed": "C",
+        "arm": "B",
+        "field": "B",
+        "catch": "C"
+      },
+      "skills": {
+        "good": [
+          "広角打法",
+          "レーザービーム"
+        ],
+        "bad": []
+      }
+    },
+    {
+      "id": "m4",
+      "name": "辻 涼太",
+      "kana": "TSUJI RYOTA",
+      "no": "5",
+      "role": "三塁手 / 打右投右",
+      "bat": "右",
+      "photo": "",
+      "tags": [
+        "主将",
+        "グラウンド予約係"
+      ],
+      "intro": "キャプテン。グラウンド確保から審判の手配まで担当。打席では「思い切り振る」以外の作戦を持ち合わせていません。",
+      "stats": {
+        "traj": "3",
+        "meet": "B",
+        "power": "B",
+        "speed": "C",
+        "arm": "B",
+        "field": "B",
+        "catch": "C"
+      },
+      "skills": {
+        "good": [
+          "チャンス○",
+          "ムードメーカー"
+        ],
+        "bad": []
+      }
+    },
+    {
+      "id": "m5",
+      "name": "大森 拓海",
+      "kana": "OMORI TAKUMI",
+      "no": "33",
+      "role": "一塁手 / 打右投右",
+      "bat": "右",
+      "photo": "",
+      "tags": [
+        "チーム唯一の柵越え",
+        "筋トレ勢"
+      ],
+      "intro": "当たれば飛ぶ。今季すでに柵越え2本。一塁の守備も無難で、悪送球をよく拾ってくれます。",
+      "stats": {
+        "traj": "4",
+        "meet": "C",
+        "power": "A",
+        "speed": "E",
+        "arm": "C",
+        "field": "C",
+        "catch": "C"
+      },
+      "skills": {
+        "good": [
+          "パワーヒッター"
+        ],
+        "bad": [
+          "走塁×"
+        ]
+      }
+    },
+    {
+      "id": "m6",
+      "name": "井上 慎吾",
+      "kana": "INOUE SHINGO",
+      "no": "10",
+      "role": "捕手 / 打右投右",
+      "bat": "右",
+      "photo": "",
+      "tags": [
+        "声出し担当",
+        "配球係"
+      ],
+      "intro": "投手のクセを全部把握している頭脳派キャッチャー。試合中いちばんよく喋っている人。道具の管理もお願いしています。",
+      "stats": {
+        "traj": "2",
+        "meet": "C",
+        "power": "C",
+        "speed": "D",
+        "arm": "B",
+        "field": "B",
+        "catch": "A"
+      },
+      "skills": {
+        "good": [
+          "キャッチャー○",
+          "配球○"
+        ],
+        "bad": []
+      }
+    },
+    {
+      "id": "m7",
+      "name": "高橋 直人",
+      "kana": "TAKAHASHI NAOTO",
+      "no": "23",
+      "role": "外野手 / 打右投右",
+      "bat": "右",
+      "photo": "",
+      "tags": [
+        "盗塁王",
+        "陸上部出身"
+      ],
+      "intro": "出塁したら走ります。今季の盗塁成功率は9割。守備範囲も広く、レフト線の当たりは追いつきます。",
+      "stats": {
+        "traj": "1",
+        "meet": "C",
+        "power": "D",
+        "speed": "A",
+        "arm": "C",
+        "field": "B",
+        "catch": "C"
+      },
+      "skills": {
+        "good": [
+          "スピードスター",
+          "盗塁○"
+        ],
+        "bad": []
+      }
+    },
+    {
+      "id": "m8",
+      "name": "小林 優",
+      "kana": "KOBAYASHI YU",
+      "no": "4",
+      "role": "二塁手 / 打右投右",
+      "bat": "右",
+      "photo": "",
+      "tags": [
+        "堅守",
+        "スコア記録"
+      ],
+      "intro": "ダブルプレーの起点。派手さはないけれど、二塁を任せると失点が減ります。スコアブックも書けます。",
+      "stats": {
+        "traj": "1",
+        "meet": "C",
+        "power": "D",
+        "speed": "C",
+        "arm": "B",
+        "field": "A",
+        "catch": "B"
+      },
+      "skills": {
+        "good": [
+          "守備職人"
+        ],
+        "bad": []
+      }
+    },
+    {
+      "id": "m9",
+      "name": "渡辺 慶太",
+      "kana": "WATANABE KEITA",
+      "no": "18",
+      "role": "投手 / 打右投右",
+      "bat": "右",
+      "photo": "",
+      "tags": [
+        "先発",
+        "技巧派"
+      ],
+      "intro": "速球で押すタイプではなく、緩急で打ち取る先発。3回までは安定するので、そこまでに点を取りたいところ。",
+      "stats": {
+        "traj": "1",
+        "meet": "D",
+        "power": "D",
+        "speed": "C",
+        "arm": "B",
+        "field": "B",
+        "catch": "C"
+      },
+      "skills": {
+        "good": [
+          "先発",
+          "対ピンチ○"
+        ],
+        "bad": []
+      }
+    },
+    {
+      "id": "m10",
+      "name": "森本 大地",
+      "kana": "MORIMOTO DAICHI",
+      "no": "11",
+      "role": "投手 / 打左投左",
+      "bat": "左",
+      "photo": "",
+      "tags": [
+        "2番手",
+        "サウスポー"
+      ],
+      "intro": "4回以降のリリーフ担当。角度のあるボールで右打者を詰まらせます。打席では意外とバットに当たります。",
+      "stats": {
+        "traj": "1",
+        "meet": "D",
+        "power": "D",
+        "speed": "C",
+        "arm": "B",
+        "field": "B",
+        "catch": "C"
+      },
+      "skills": {
+        "good": [
+          "中継ぎ",
+          "対左打者○"
+        ],
+        "bad": []
+      }
+    },
+    {
+      "id": "m11",
+      "name": "岡田 蓮",
+      "kana": "OKADA REN",
+      "no": "2",
+      "role": "内野手・代走 / 打右投右",
+      "bat": "右",
+      "photo": "",
+      "tags": [
+        "代走",
+        "ユーティリティ",
+        "最年少"
+      ],
+      "intro": "内野ならどこでも守れる便利屋。終盤の代走で1点をもぎ取る役割。チーム最年少で元気だけは無限にあります。",
+      "stats": {
+        "traj": "1",
+        "meet": "C",
+        "power": "E",
+        "speed": "A",
+        "arm": "C",
+        "field": "B",
+        "catch": "C"
+      },
+      "skills": {
+        "good": [
+          "代走○"
+        ],
+        "bad": []
+      }
+    },
+    {
+      "id": "m12",
+      "name": "石川 悠",
+      "kana": "ISHIKAWA YU",
+      "no": "25",
+      "role": "外野手・代打 / 打左投右",
+      "bat": "左",
+      "photo": "",
+      "tags": [
+        "代打",
+        "写真係"
+      ],
+      "intro": "ここで一本欲しい場面の代打。狙い球を絞って振り抜くスタイル。試合の写真はだいたいこの人が撮っています。",
+      "stats": {
+        "traj": "3",
+        "meet": "C",
+        "power": "B",
+        "speed": "C",
+        "arm": "C",
+        "field": "C",
+        "catch": "C"
+      },
+      "skills": {
+        "good": [
+          "代打○"
+        ],
+        "bad": []
+      }
+    }
   ],
   "lineup": [
-    { "id":"m1", "pos":"中", "note":"出塁率お化け。とりあえず塁に出る" },
-    { "id":"m2", "pos":"遊", "note":"バント職人。サインは全部通る" },
-    { "id":"m3", "pos":"右", "note":"逆方向へ運ぶのが上手い" },
-    { "id":"m4", "pos":"三", "note":"主将。困ったら4番が返す", "badge":"主将" },
-    { "id":"m5", "pos":"一", "note":"チーム唯一の長距離砲" },
-    { "id":"m6", "pos":"捕", "note":"守備の司令塔。声が一番でかい" },
-    { "id":"m7", "pos":"左", "note":"足はチーム最速、打球は正直" },
-    { "id":"m8", "pos":"二", "note":"送球が丁寧。併殺の起点" },
-    { "id":"m9", "pos":"投", "note":"技巧派。3回までは無失点" }
+    {
+      "id": "m1",
+      "pos": "中",
+      "note": "出塁率お化け。とりあえず塁に出る"
+    },
+    {
+      "id": "m2",
+      "pos": "遊",
+      "note": "バント職人。サインは全部通る"
+    },
+    {
+      "id": "m3",
+      "pos": "右",
+      "note": "逆方向へ運ぶのが上手い"
+    },
+    {
+      "id": "m4",
+      "pos": "三",
+      "note": "主将。困ったら4番が返す",
+      "badge": "主将"
+    },
+    {
+      "id": "m5",
+      "pos": "一",
+      "note": "チーム唯一の長距離砲"
+    },
+    {
+      "id": "m6",
+      "pos": "捕",
+      "note": "守備の司令塔。声が一番でかい"
+    },
+    {
+      "id": "m7",
+      "pos": "左",
+      "note": "足はチーム最速、打球は正直"
+    },
+    {
+      "id": "m8",
+      "pos": "二",
+      "note": "送球が丁寧。併殺の起点"
+    },
+    {
+      "id": "m9",
+      "pos": "投",
+      "note": "技巧派。3回までは無失点"
+    }
   ],
   "notes": [
-    { "label":"集合", "text":"8:30 グラウンド前の駐車場に集合。遅れる人はLINEグループへ" },
-    { "label":"持ち物", "text":"グローブ / バット / スパイク / 白ユニ・紺帽 / 飲み物（多め）" },
-    { "label":"当番", "text":"ベース設置=渡辺・小林 / 審判=辻 / 写真=石川 / ゴミ持ち帰り=全員" },
-    { "label":"会費", "text":"1人1,000円（グラウンド代・ボール代）。井上が集めます" },
-    { "label":"試合後", "text":"12:00ごろ解散 → 希望者で駅前の「大将」で打ち上げ" }
+    {
+      "label": "集合",
+      "text": "8:30 グラウンド前の駐車場に集合。遅れる人はLINEグループへ"
+    },
+    {
+      "label": "持ち物",
+      "text": "グローブ / バット / スパイク / 白ユニ・紺帽 / 飲み物（多め）"
+    },
+    {
+      "label": "当番",
+      "text": "ベース設置=渡辺・小林 / 審判=辻 / 写真=石川 / ゴミ持ち帰り=全員"
+    },
+    {
+      "label": "会費",
+      "text": "1人1,000円（グラウンド代・ボール代）。井上が集めます"
+    },
+    {
+      "label": "試合後",
+      "text": "12:00ごろ解散 → 希望者で駅前の「大将」で打ち上げ"
+    }
   ],
   "updatedAt": "2026.08.25"
 }
@@ -290,6 +775,18 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
 const POS_LIST = ["投","捕","一","二","三","遊","左","中","右","指"];
 const POS_GROUP = {"投":"battery","捕":"battery","一":"infield","二":"infield","三":"infield","遊":"infield","左":"outfield","中":"outfield","右":"outfield","指":"dh"};
 const BAT_LIST = ["右","左","両"];
+/* パワプロ風の能力ランク */
+const STATS = [
+  { k:"meet",  label:"ミート",  short:"ミ" },
+  { k:"power", label:"パワー",  short:"パ" },
+  { k:"speed", label:"走力",    short:"走" },
+  { k:"arm",   label:"肩力",    short:"肩" },
+  { k:"field", label:"守備力",  short:"守" },
+  { k:"catch", label:"捕球",    short:"捕" }
+];
+const ORDER_STATS = ["meet","power","speed","arm","field"];
+const RANKS = ["","S","A","B","C","D","E","F","G"];
+const TRAJ = ["","1","2","3","4"];
 const FONT_LINK = '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;700;900&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap">';
 const LS_KEY = "yakyu-order-sheet";
 
@@ -379,6 +876,9 @@ function render(){
   const s1 = el("section");
   s1.innerHTML = '<div class="sec-head"><h2>スタメン</h2><p>名前をタップすると紹介にジャンプ</p></div>';
   const order = el("div","order");
+  const ohead = el("div","order__head");
+  ohead.innerHTML = 'STARTING LINEUP<span>ミ ミート ／ パ パワー ／ 走 走力 ／ 肩 肩力 ／ 守 守備力</span>';
+  order.appendChild(ohead);
   DATA.lineup.forEach((p, i) => {
     const m = byId(p.id) || {};
     const row = el("button","order__row reveal");
@@ -390,7 +890,8 @@ function render(){
       '<div class="pos" data-g="' + (POS_GROUP[p.pos] || "infield") + '">' + esc(p.pos || "―") + '</div>' +
       '<div><div class="order__name">' + esc(m.name || "（未選択）") +
         (p.badge ? '<span class="badge">' + esc(p.badge) + '</span>' : '') + '</div>' +
-        (p.note ? '<div class="order__note">' + esc(p.note) + '</div>' : '') + '</div>' +
+        (p.note ? '<div class="order__note">' + esc(p.note) + '</div>' : '') +
+        rankHtml(m, ORDER_STATS) + skillHtml(m) + '</div>' +
       '<div class="order__meta">' +
         (m.no ? '<span class="jersey">' + esc(m.no) + '</span>' : '') +
         (m.bat ? '<span class="bat">打' + esc(m.bat) + '</span>' : '') + '</div>';
@@ -430,6 +931,9 @@ function render(){
       (m.kana ? '<p class="card__kana">' + esc(m.kana) + '</p>' : '') +
       '<h3 class="card__name">' + esc(m.name) + '</h3>' +
       (m.role ? '<p class="card__role">' + esc(m.role) + '</p>' : '') +
+      ((trajHtml(m) || rankHtml(m, STATS.map(x => x.k)))
+        ? '<div class="abil">' + trajHtml(m) + rankHtml(m, STATS.map(x => x.k)) + '</div>' : '') +
+      skillHtml(m) +
       ((m.tags && m.tags.length) ? '<div class="tags">' + m.tags.map(t => '<span class="tag">' + esc(t) + '</span>').join("") + '</div>' : '') +
       (m.intro ? '<p class="card__intro">' + esc(m.intro) + '</p>' : '');
     card.appendChild(body);
@@ -477,6 +981,29 @@ function photoBox(m){
     box.appendChild(fallback);
   }
   return box;
+}
+
+/* ---------- パワプロ風パーツ ---------- */
+function rankHtml(m, keys){
+  const st = m.stats || {};
+  const items = keys.map(k => {
+    const def = STATS.find(x => x.k === k);
+    const v = st[k];
+    if(!def || !v) return "";
+    return '<span class="rank" title="' + esc(def.label) + '">' + esc(def.short) +
+           '<b data-r="' + esc(v) + '">' + esc(v) + '</b></span>';
+  }).filter(Boolean);
+  return items.length ? '<div class="ranks">' + items.join("") + '</div>' : "";
+}
+function trajHtml(m){
+  const t = (m.stats || {}).traj;
+  return t ? '<span class="traj">弾道<b>' + esc(t) + '</b></span>' : "";
+}
+function skillHtml(m){
+  const sk = m.skills || {};
+  const chips = (sk.good || []).map(x => '<span class="skill skill--good">' + esc(x) + '</span>')
+        .concat((sk.bad || []).map(x => '<span class="skill skill--bad">' + esc(x) + '</span>'));
+  return chips.length ? '<div class="skills">' + chips.join("") + '</div>' : "";
 }
 
 function jumpTo(id){
@@ -710,9 +1237,28 @@ function renderEditor(){
       field("背番号", m.no, v => { m.no = v; }, {placeholder:"5"}),
       field("打席", m.bat, v => { m.bat = v; }, {type:"select", options:BAT_LIST.map(x => ({value:x,label:x}))})
     );
+    m.stats = m.stats || {};
+    m.skills = m.skills || {};
+    const statGrid = el("div","ed-stats");
+    statGrid.append(
+      field("弾道", m.stats.traj, v => { m.stats.traj = v; }, {type:"select", options:TRAJ.map(x => ({value:x,label:x || "—"}))})
+    );
+    STATS.forEach(st => statGrid.append(
+      field(st.label, m.stats[st.k], v => { m.stats[st.k] = v; }, {type:"select", options:RANKS.map(x => ({value:x,label:x || "—"}))})
+    ));
+    const statHead = el("p","ed-sub");
+    statHead.textContent = "能力（空欄なら表示されません）";
+
     info.append(
       c1, c2,
       field("ポジション・投打", m.role, v => { m.role = v; }, {placeholder:"三塁手 / 打右投右"}),
+      statHead, statGrid,
+      field("青特（良い特殊能力・カンマ区切り）", (m.skills.good || []).join(", "), v => {
+        m.skills.good = v.split(/[,、]/).map(x => x.trim()).filter(Boolean);
+      }, {placeholder:"パワーヒッター, 盗塁○"}),
+      field("赤特（弱点・カンマ区切り）", (m.skills.bad || []).join(", "), v => {
+        m.skills.bad = v.split(/[,、]/).map(x => x.trim()).filter(Boolean);
+      }, {placeholder:"ケガしにくさG"}),
       field("タグ（カンマ区切り）", (m.tags || []).join(", "), v => {
         m.tags = v.split(/[,、]/).map(s => s.trim()).filter(Boolean);
       }, {placeholder:"主将, 盗塁王"}),
