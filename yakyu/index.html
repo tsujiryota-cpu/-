@@ -247,6 +247,7 @@ section{margin-top:44px}
   padding:16px 18px;box-shadow:var(--shadow);
 }
 .disclaimer p{font-size:.86rem;color:var(--ink-2);line-height:1.85;white-space:pre-line}
+.disclaimer__note{margin-top:.2em}
 .protest__wrap{display:flex;justify-content:center;margin-top:16px}
 .protest{
   font-weight:900;font-size:1.02rem;letter-spacing:.1em;color:#FFF4EF;cursor:pointer;
@@ -863,7 +864,8 @@ const LS_KEY = "yakyu-order-sheet";
 /* 能力値の注意書き（DATA.disclaimer で上書き可能） */
 const DEFAULT_DISCLAIMER = {
   title: "能力値について",
-  text: "※ 各選手の能力ランク・弾道・特殊能力は、すべてAIが独断で決めています。実際の実力とは一切関係ありません。\n※ 査定への文句・異議・苦情は一切受け付けておりません。\n※ どうしても言いたいことがある方は、下のボタンからどうぞ。",
+  text: "※ 各選手の能力ランク・弾道・特殊能力は、すべてAIが独断で決めています。実際の実力とは一切関係ありません。\n※ 査定への文句・異議・苦情は一切受け付けておりません。",
+  note: "※ どうしても言いたいことがある方は、下のボタンからどうぞ。",
   button: "物申す",
   video: ""
 };
@@ -1041,7 +1043,8 @@ function render(){
     const s4 = el("section");
     s4.innerHTML = '<div class="sec-head"><h2>' + esc(dc.title || "注意書き") + '</h2><p>査定はAI担当です</p></div>';
     const box = el("div","disclaimer");
-    box.innerHTML = '<p>' + esc(dc.text) + '</p>';
+    box.innerHTML = '<p>' + esc(dc.text) + '</p>' +
+      (dc.note ? '<p class="no-print disclaimer__note">' + esc(dc.note) + '</p>' : '');
     if(dc.video){
       const wrap = el("div","protest__wrap");
       const btn = el("button","protest");
@@ -1453,6 +1456,8 @@ function renderEditor(){
   dcRow.append(
     field("見出し", DRAFT.disclaimer.title, v => { DRAFT.disclaimer.title = v; }),
     field("本文", DRAFT.disclaimer.text, v => { DRAFT.disclaimer.text = v; }, {type:"textarea", rows:4}),
+    field("ボタンの案内文（印刷・PDFでは出ません）", DRAFT.disclaimer.note, v => { DRAFT.disclaimer.note = v; },
+          {placeholder:"※ どうしても言いたいことがある方は、下のボタンからどうぞ。"}),
     field("ボタンの文言", DRAFT.disclaimer.button, v => { DRAFT.disclaimer.button = v; }, {placeholder:"物申す"})
   );
   const dcList = el("div","ed-list");
