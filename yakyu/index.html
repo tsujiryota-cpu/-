@@ -79,6 +79,7 @@ button{font:inherit;color:inherit}
 }
 .btn:hover{background:rgba(241,239,227,.12);border-color:rgba(241,239,227,.7)}
 .btn:active{transform:translateY(1px)}
+.btn:link,.btn:visited{text-decoration:none}
 .btn--primary{background:var(--header-ink);color:var(--header-bg);border-color:var(--header-ink)}
 .btn--primary:hover{background:#fff;border-color:#fff}
 
@@ -331,14 +332,54 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-off
   *{transition:none!important}
 }
 
-/* ---------- 印刷 ---------- */
+/* ---------- 印刷 / PDF ---------- */
 @media print{
-  body{background:#fff;color:#000}
-  .hero{background:#fff;color:#000;border-bottom:2px solid #000}
-  .hero__diamond,.hero__tools,.no-print,footer,.editor{display:none!important}
-  .order,.card,.notes{box-shadow:none}
-  .order__no{color:#000}
-  .pos{background:#000!important;color:#fff}
+  @page{ size:A4; margin:12mm; }
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  html,body{background:#fff!important;color:#000!important}
+  .hero{background:#fff!important;color:#000!important;border-bottom:3px solid #000}
+  .hero__inner{padding-top:0;padding-bottom:14px}
+  .hero .eyebrow,.hero__ground{color:#444!important}
+  .hero__vs .vs{color:#666!important}
+  .hero__diamond,.hero__tools,.no-print,.editor,.toast,.protest__wrap,.protest-video{display:none!important}
+  .wrap{max-width:none;padding:0}
+  .facts{background:#fff!important;border-top:1px solid #999}
+  .fact{border-color:#bbb!important}
+  section{margin-top:18px}
+  .sec-head{break-after:avoid}
+  .order__row{break-inside:avoid}
+  .order{break-inside:auto}
+  .sec-head{border-bottom-color:#000}
+  .sec-head p{color:#555!important}
+
+  /* オーダーパネルは印刷では白地に */
+  .order{background:#fff!important;border:2px solid #000!important;box-shadow:none}
+  .order__head{background:#000!important;color:#fff!important;border-bottom:0}
+  .order__head span{color:#ddd!important}
+  .order .order__row{background:#fff!important;border-bottom:1px solid #bbb!important;padding:8px 10px}
+  .order .order__no{color:#000!important;text-shadow:none}
+  .order .order__name{color:#000!important;text-shadow:none}
+  .order .order__no small,.order .order__note,.order .order__meta,.order .rank,.order .traj{color:#444!important}
+  .order .order__meta .jersey{color:#000!important;text-shadow:none}
+  .order .traj b{color:#000!important}
+  .order .bat{border-color:#888!important;color:#333!important}
+  .order .skill--good{color:#14509A!important;border-color:#14509A!important;background:#fff!important}
+  .order .skill--bad{color:#A32A1B!important;border-color:#A32A1B!important;background:#fff!important}
+  .pos{box-shadow:none!important;border-color:rgba(0,0,0,.25)!important}
+
+  /* メンバー紹介は2段組み・カードは途中で切らない */
+  .members{grid-template-columns:1fr 1fr;gap:10px}
+  .card{break-inside:avoid;box-shadow:none;border-color:#999;background:#fff!important;grid-template-columns:100px minmax(0,1fr)}
+  .card__jersey{color:#000!important;opacity:.12}
+  .card__intro{color:#333!important}
+  .card__role{color:#1F4D31!important}
+  .tag{background:#EEE!important;color:#444!important}
+  .skill--good{color:#14509A!important;border-color:#14509A!important;background:#fff!important}
+  .skill--bad{color:#A32A1B!important;border-color:#A32A1B!important;background:#fff!important}
+
+  .notes,.disclaimer{box-shadow:none;border-color:#999;background:#fff!important}
+  .notes span,.disclaimer p{color:#333!important}
+  footer{display:flex!important;border-top:1px solid #999;color:#555!important;margin:24px 0 0}
 }
 </style>
 </head>
@@ -889,6 +930,7 @@ function render(){
         '<button class="btn btn--primary" id="edit-btn" type="button">✏️ 編集する</button>' +
         '<button class="btn" id="copy-btn" type="button">🔗 URLをコピー</button>' +
         '<button class="btn" id="print-btn" type="button">🖨 印刷</button>' +
+        (DATA.pdf ? '<a class="btn" id="pdf-btn" href="' + esc(DATA.pdf) + '" target="_blank" rel="noopener">📄 PDF版</a>' : '') +
       '</div>' +
     '</div>';
   root.appendChild(hero);
@@ -911,7 +953,7 @@ function render(){
 
   /* ---- スタメン ---- */
   const s1 = el("section");
-  s1.innerHTML = '<div class="sec-head"><h2>スタメン</h2><p>名前をタップすると紹介にジャンプ</p></div>';
+  s1.innerHTML = '<div class="sec-head"><h2>スタメン</h2><p class="no-print">名前をタップすると紹介にジャンプ</p></div>';
   const order = el("div","order");
   const ohead = el("div","order__head");
   ohead.innerHTML = 'STARTING LINEUP<span>ミ ミート ／ パ パワー ／ 走 走力 ／ 肩 肩力 ／ 守 守備力</span>';
