@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>レボルトチンパンズ オーダー表</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=Saira+Condensed:wght@500;700&display=swap">
+<style>
+  @page{ size:A4; margin:16mm 15mm; }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;
+    color:#111;background:#fff;line-height:1.6;-webkit-font-smoothing:antialiased;
+  }
+  .sheet{width:180mm;margin:0 auto}
+  .head{display:flex;align-items:flex-end;justify-content:space-between;border-bottom:3px solid #111;padding-bottom:6px}
+  h1{font-size:22pt;font-weight:900;letter-spacing:.14em}
+  .head .date{font-size:11pt;font-weight:700;font-variant-numeric:tabular-nums;color:#333}
+
+  .match{display:flex;align-items:baseline;gap:14px;margin-top:16px;flex-wrap:wrap}
+  .match .team{font-size:20pt;font-weight:900;letter-spacing:.02em}
+  .match .vs{font-family:"Saira Condensed",sans-serif;font-size:15pt;font-weight:700;color:#666;letter-spacing:.06em}
+  .match .opp{font-size:15pt;font-weight:700}
+
+  .facts{display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin-top:14px;border:1px solid #999}
+  .facts div{padding:7px 10px;border-right:1px solid #ccc;font-size:10.5pt}
+  .facts div:last-child{border-right:0}
+  .facts b{display:block;font-size:8pt;font-weight:700;letter-spacing:.12em;color:#666;margin-bottom:1px}
+
+  table{width:100%;border-collapse:collapse;margin-top:20px}
+  thead th{
+    background:#111;color:#fff;font-size:9.5pt;font-weight:700;letter-spacing:.14em;
+    padding:7px 8px;border:1px solid #111;
+  }
+  tbody td{border:1px solid #999;padding:9px 10px;font-size:13pt;vertical-align:middle}
+  tbody tr:nth-child(even) td{background:#F6F6F4}
+  .c{text-align:center}
+  .no{width:14mm;font-family:"Saira Condensed",sans-serif;font-size:17pt;font-weight:700;font-variant-numeric:tabular-nums}
+  .pos{width:30mm}
+  .pos-kanji{font-weight:700}
+  .pos-no{display:inline-block;margin-left:5px;font-family:"Saira Condensed",sans-serif;font-size:11pt;font-weight:700;color:#666}
+  .name{font-size:14.5pt;font-weight:700;letter-spacing:.04em}
+  thead th.name-h{text-align:left;padding-left:10px}
+  .num{width:20mm;font-family:"Saira Condensed",sans-serif;font-size:15pt;font-weight:700;font-variant-numeric:tabular-nums}
+  .bat{width:16mm;font-size:11.5pt}
+
+  .sign{display:flex;gap:24px;margin-top:26px;font-size:10.5pt}
+  .sign div{flex:1;border-bottom:1px solid #666;padding-bottom:4px}
+  .sign span{font-size:9pt;color:#666;letter-spacing:.1em;margin-right:8px}
+  .foot{margin-top:14px;font-size:8.5pt;color:#777;display:flex;justify-content:space-between}
+</style>
+</head>
+<body>
+<div class="sheet">
+  <div class="head">
+    <h1>オーダー表</h1>
+    <div class="date">2026.08.30　プレイボール 9:30（仮）</div>
+  </div>
+
+  <div class="match">
+    <span class="team">レボルトチンパンズ</span>
+    <span class="vs">VS</span>
+    <span class="opp">ニナイテ野球部</span>
+  </div>
+
+  <div class="facts">
+    <div><b>球場</b>円山公園坂下球場</div>
+    <div><b>試合形式</b>7回（仮）</div>
+    <div><b>集合</b>8:45</div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>打順</th><th>守備位置</th><th class="name-h">選手名</th><th>背番号</th><th>打席</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="c no">1</td>
+        <td class="c pos"><span class="pos-kanji">遊撃手</span><span class="pos-no">6</span></td>
+        <td class="name">神田　祥大</td>
+        <td class="c num">6</td>
+        <td class="c bat">右</td>
+      </tr>
+      <tr>
+        <td class="c no">2</td>
+        <td class="c pos"><span class="pos-kanji">二塁手</span><span class="pos-no">4</span></td>
+        <td class="name">村上　礼音</td>
+        <td class="c num">9</td>
+        <td class="c bat">右</td>
+      </tr>
+      <tr>
+        <td class="c no">3</td>
+        <td class="c pos"><span class="pos-kanji">三塁手</span><span class="pos-no">5</span></td>
+        <td class="name">竹村　友杜</td>
+        <td class="c num">5</td>
+        <td class="c bat">右</td>
+      </tr>
+      <tr>
+        <td class="c no">4</td>
+        <td class="c pos"><span class="pos-kanji">投手</span><span class="pos-no">1</span></td>
+        <td class="name">田中 統士</td>
+        <td class="c num">1</td>
+        <td class="c bat">右</td>
+      </tr>
+      <tr>
+        <td class="c no">5</td>
+        <td class="c pos"><span class="pos-kanji">一塁手</span><span class="pos-no">3</span></td>
+        <td class="name">辻　崚太</td>
+        <td class="c num">3</td>
+        <td class="c bat">右</td>
+      </tr>
+      <tr>
+        <td class="c no">6</td>
+        <td class="c pos"><span class="pos-kanji">左翼手</span><span class="pos-no">7</span></td>
+        <td class="name">松岡　空</td>
+        <td class="c num">7</td>
+        <td class="c bat">右</td>
+      </tr>
+      <tr>
+        <td class="c no">7</td>
+        <td class="c pos"><span class="pos-kanji">右翼手</span><span class="pos-no">9</span></td>
+        <td class="name">吉岡　凌</td>
+        <td class="c num">12</td>
+        <td class="c bat">右</td>
+      </tr>
+      <tr>
+        <td class="c no">8</td>
+        <td class="c pos"><span class="pos-kanji">中堅手</span><span class="pos-no">8</span></td>
+        <td class="name">米村　祐哉</td>
+        <td class="c num">99</td>
+        <td class="c bat">左</td>
+      </tr>
+      <tr>
+        <td class="c no">9</td>
+        <td class="c pos"><span class="pos-kanji">捕手</span><span class="pos-no">2</span></td>
+        <td class="name">田中　慶人</td>
+        <td class="c num">2</td>
+        <td class="c bat">右</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="sign">
+    <div><span>監督</span></div>
+    <div><span>主将</span></div>
+    <div><span>提出日</span></div>
+  </div>
+
+  <div class="foot">
+    <span>レボルトチンパンズ</span>
+    <span>更新 2026.08.29</span>
+  </div>
+</div>
+</body>
+</html>
