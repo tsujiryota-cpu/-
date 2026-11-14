@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#0f1512">
+<title>麻雀カメラ参謀</title>
+<style>
+:root{--bg:#0f1512;--panel:#18211c;--line:#2a3830;--ink:#eef4ef;--mute:#8fa398;--acc:#ffd23f;--good:#4ade80;--warn:#fb923c;--bad:#f87171;--safe:#38bdf8}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;overscroll-behavior:none}
+#app{display:flex;flex-direction:column;height:100dvh;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+#view{position:relative;background:#000;flex:0 0 auto;display:flex;align-items:center;justify-content:center;min-height:30dvh;max-height:46dvh;overflow:hidden}
+#view video,#view img#still{display:block;max-width:100%;max-height:46dvh}
+#overlay{position:absolute;pointer-events:none}
+#start{position:absolute;inset:0;display:flex;flex-direction:column;gap:14px;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 40%,#1d2b23,#0b100d);padding:16px;text-align:center}
+#start h1{margin:0;font-size:22px;letter-spacing:.04em}
+#start p{margin:0;color:var(--mute);font-size:13px;line-height:1.6;max-width:30em}
+button{font:inherit;color:inherit;border:0;border-radius:10px;cursor:pointer}
+.primary{background:var(--acc);color:#1b1500;font-weight:700;font-size:17px;padding:13px 26px}
+.ghost{background:transparent;border:1px solid var(--line);color:var(--mute);font-size:13px;padding:8px 14px}
+#stat{position:absolute;left:6px;top:6px;font-size:11px;background:#000a;padding:2px 7px;border-radius:6px;color:#cfe;font-variant-numeric:tabular-nums}
+#panel{flex:1 1 auto;overflow:auto;padding:10px 12px 14px;display:flex;flex-direction:column;gap:10px}
+#head{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 12px;min-height:84px}
+#head .big{flex:0 0 auto}
+#head .txt{min-width:0}
+#head .ttl{font-size:20px;font-weight:800;line-height:1.25}
+#head .sub{font-size:13px;color:var(--mute);margin-top:3px;line-height:1.45}
+#head.fold{border-color:var(--safe)} #head.push{border-color:var(--warn)} #head.agari{border-color:var(--good)}
+.t{display:inline-block;width:30px;aspect-ratio:3/4;background:#f6f3ea;border-radius:4px;box-shadow:0 2px 0 #b9b39f;vertical-align:middle;position:relative;flex:0 0 auto}
+.t img{width:100%;height:100%;display:block}
+.t.big{width:54px;border-radius:7px;box-shadow:0 4px 0 #b9b39f,0 0 0 3px var(--acc)}
+.t.sm{width:21px;border-radius:3px;box-shadow:0 1px 0 #b9b39f}
+.t.low{opacity:.55}
+.t .n{position:absolute;right:-4px;bottom:-5px;background:#111c;color:#fff;font-size:9px;border-radius:6px;padding:0 3px;line-height:13px}
+.sec{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:9px 11px}
+.sec h2{margin:0 0 7px;font-size:12px;color:var(--mute);font-weight:600;letter-spacing:.06em}
+.row{display:flex;align-items:center;gap:9px;padding:6px 0;border-top:1px solid var(--line);font-size:13px}
+.row:first-of-type{border-top:0}
+.row .meta{flex:0 0 auto;min-width:92px;font-variant-numeric:tabular-nums}
+.row .w{display:flex;flex-wrap:wrap;gap:3px;min-width:0}
+.badge{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:1px 6px;margin-left:4px}
+.d0{background:#0c4a6e;color:#bae6fd}.d1{background:#14532d;color:#bbf7d0}.d2{background:#3f3f12;color:#fde68a}.d3{background:#7c2d12;color:#fed7aa}.d4{background:#7f1d1d;color:#fecaca}
+#handrow{display:flex;gap:3px;flex-wrap:wrap;align-items:flex-end}
+#handrow .slot{display:flex;flex-direction:column;align-items:center;gap:3px}
+#handrow .t{width:22px;border-radius:3px}
+#handrow .bar{width:100%;height:4px;border-radius:2px;background:var(--line)}
+#handrow .gap{width:8px}
+.call{display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--line);font-size:13px}
+.call:first-of-type{border-top:0}
+.call b{font-size:14px}
+.call.good b{color:var(--good)} .call.meh b{color:var(--mute)}
+#ctrl{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.tg{background:#202b25;border:1px solid var(--line);font-size:13px;padding:8px 11px;color:var(--ink)}
+.tg.on{background:#7f1d1d;border-color:#f87171;color:#fff}
+.tg.sel{background:#243a2e;border-color:var(--good)}
+.lbl{font-size:11px;color:var(--mute);margin:0 2px 0 6px}
+.hint{font-size:12px;color:var(--mute);line-height:1.6}
+.err{color:var(--bad)}
+@media (orientation:landscape){
+  #app{flex-direction:row}
+  #view{flex:1 1 58%;max-height:none;min-height:0}
+  #view video,#view img#still{max-height:100dvh}
+  #panel{flex:1 1 42%;max-width:440px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="view">
+    <video id="video" playsinline muted autoplay></video>
+    <img id="still" alt="" hidden>
+    <canvas id="overlay"></canvas>
+    <div id="stat" hidden></div>
+    <div id="start">
+      <h1>🀄 麻雀カメラ参謀</h1>
+      <p>麻雀ゲームの画面にカメラを向けると、手牌を読み取って<b>何を切るか</b>・<b>鳴くべき牌</b>・<b>危険牌</b>をその場で表示します。画面全体が映るように、スマホを横向きで構えてください。</p>
+      <button class="primary" id="btnStart">カメラを開始</button>
+      <label class="ghost" style="cursor:pointer">スクリーンショット/動画で試す<input id="file" type="file" accept="image/*,video/*" hidden></label>
+      <p id="loadmsg">認識モデルを読み込み中…</p>
+    </div>
+  </div>
+  <div id="panel">
+    <div id="head"><div class="txt"><div class="ttl">待機中</div><div class="sub">カメラを開始すると判定が始まります</div></div></div>
+    <div class="sec">
+      <h2>警戒する相手(リーチ・聴牌気配)を押すと危険牌を表示</h2>
+      <div id="ctrl">
+        <button class="tg" data-th="3">◀ 上家</button>
+        <button class="tg" data-th="2">▲ 対面</button>
+        <button class="tg" data-th="1">下家 ▶</button>
+        <span class="lbl">場風</span><button class="tg" id="bRound">東</button>
+        <span class="lbl">自風</span><button class="tg" id="bSeat">東</button>
+        <button class="tg" id="bVoice">🔇</button>
+        <button class="tg" id="bSpeed">速度優先</button>
+      </div>
+    </div>
+    <div class="sec" id="secHand" hidden><h2>読み取った手牌</h2><div id="handrow"></div></div>
+    <div class="sec" id="secList" hidden><h2 id="listTitle">打牌候補</h2><div id="list"></div></div>
+    <div class="hint" id="hint">枠の色: <span style="color:#ffd23f">■</span>手牌 <span style="color:#4ade80">■</span>自分の河 <span style="color:#f87171">■</span>下家 <span style="color:#c084fc">■</span>対面 <span style="color:#38bdf8">■</span>上家 <span style="color:#9ca3af">■</span>その他(副露・ドラ表示)。認識は端末内で完結し、映像は送信されません。オンライン対戦での利用は各ゲームの規約をご確認ください。</div>
+  </div>
+</div>
+<script src="ort/ort.wasm.min.js"></script>
+<script src="engine.js"></script>
+<script src="vision.js"></script>
+<script>
+'use strict';
+// 複数スレッド WASM を使うためのクロスオリジン分離 (Service Worker でヘッダを付与)
+(async () => {
+  if (!('serviceWorker' in navigator) || location.search.includes('nosw')) return;
+  try {
+    await navigator.serviceWorker.register('sw.js');
+    if (!self.crossOriginIsolated && !sessionStorage.getItem('coiReload')) {
+      await navigator.serviceWorker.ready;
+      sessionStorage.setItem('coiReload', '1');
+      if (navigator.serviceWorker.controller) location.reload();
+      else navigator.serviceWorker.addEventListener('controllerchange', () => location.reload());
+    }
+  } catch (e) { /* 単スレッドで続行 */ }
+})();
+
+const $ = (id) => document.getElementById(id);
+const video = $('video'), still = $('still'), overlay = $('overlay');
+const S = {
+  src: null, running: false, threats: [false, false, false, false], round: 0, seat: 0, voice: false, detW: 640,
+  hist: [], lastRawKey: '', hand: [], handTiles: [], lastKey: '', pickBox: null, lay: null, res: null, spoken: '',
+};
+const ZCOL = { hand: '#ffd23f', river0: '#4ade80', river1: '#f87171', river2: '#c084fc', river3: '#38bdf8', other: '#9ca3af' };
+const WIND = ['東', '南', '西', '北'];
+const tileEl = (t, cls, n) => `<span class="t ${cls || ''}"><img src="tiles/${t}.svg" alt="${MJ.label(t)}">${n != null ? `<span class="n">${n}</span>` : ''}</span>`;
+const dcls = (v) => (v <= 0 ? 'd0' : v <= 6 ? 'd1' : v <= 12 ? 'd2' : v <= 20 ? 'd3' : 'd4');
+const shName = (s) => (s < 0 ? '和了' : s === 0 ? '聴牌' : s + '向聴');
+
+Vision.init('').then(() => {
+  $('loadmsg').textContent = '準備OK' + (Vision.threads > 1 ? `(${Vision.threads}スレッド)` : '');
+}).catch((e) => { $('loadmsg').innerHTML = '<span class="err">モデルの読み込みに失敗: ' + e.message + '</span>'; });
+
+$('btnStart').onclick = async () => {
+  try {
+    const st = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } });
+    video.srcObject = st;
+    await video.play();
+    begin(video);
+    try { await navigator.wakeLock.request('screen'); } catch (e) {}
+  } catch (e) {
+    $('loadmsg').innerHTML = '<span class="err">カメラを開けませんでした: ' + e.message + '</span>';
+  }
+};
+$('file').onchange = async (ev) => {
+  const f = ev.target.files[0];
+  if (!f) return;
+  const url = URL.createObjectURL(f);
+  if (f.type.startsWith('video')) {
+    video.srcObject = null; video.src = url; video.loop = true;
+    await video.play();
+    begin(video);
+  } else {
+    still.src = url;
+    await still.decode();
+    still.hidden = false; video.hidden = true;
+    begin(still);
+  }
+};
+function begin(src) {
+  S.src = src;
+  $('start').hidden = true; $('start').style.display = 'none';
+  $('stat').hidden = false;
+  if (!S.running) { S.running = true; loop(); }
+}
+
+async function loop() {
+  let fpsT = performance.now(), fps = 0;
+  while (S.running) {
+    if (!Vision.ready || document.hidden) { await new Promise((r) => setTimeout(r, 200)); continue; }
+    let res = null;
+    try { res = await Vision.process(S.src, { detW: S.detW, handOf: Vision.handFlags }); }
+    catch (e) { $('stat').textContent = 'エラー: ' + e.message; await new Promise((r) => setTimeout(r, 500)); continue; }
+    if (res) {
+      const now = performance.now();
+      fps = fps * 0.7 + 0.3 * (1000 / Math.max(1, now - fpsT)); fpsT = now;
+      S.res = res;
+      update(res);
+      draw();
+      $('stat').textContent = `${fps.toFixed(1)}fps 検出${res.ms.det | 0}ms 分類${res.ms.cls | 0}ms 牌${res.tiles.length}`;
+    }
+    await new Promise((r) => (S.src === still ? setTimeout(r, 400) : requestAnimationFrame(r)));
+  }
+}
+
+function update(res) {
+  const lay = Vision.layout(res.tiles);
+  S.lay = lay;
+  const hand = lay.hand;
+  const rawKey = hand.map((b) => b.t).join(',');
+  const vis = new Int8Array(34), riv = [new Int8Array(34), new Int8Array(34), new Int8Array(34), new Int8Array(34)];
+  lay.rivers.forEach((r, p) => r.forEach((b) => { vis[b.t]++; riv[p][b.t]++; }));
+  lay.others.forEach((b) => vis[b.t]++);
+  S.hist.push({ vis, riv });
+  if (S.hist.length > 5) S.hist.shift();
+  // 手牌は2フレーム連続で同じ読みになったら採用 (静止画は即採用)
+  const stable = rawKey === S.lastRawKey || S.src === still;
+  S.lastRawKey = rawKey;
+  if (stable) { S.hand = hand.map((b) => b.t); S.handConf = hand.map((b) => b.conf); S.handBoxes = hand; }
+  else if (S.handBoxes && hand.length === S.hand.length) S.handBoxes = hand; // 枠だけ追従
+  // 見えている枚数は直近フレームの中央値、河は過半数のフレームで見えた牌
+  const seen = new Int8Array(34), rivers = riv.map(() => new Int8Array(34));
+  const n = S.hist.length;
+  for (let t = 0; t < 34; t++) {
+    const a = S.hist.map((h) => h.vis[t]).sort((x, y) => x - y);
+    seen[t] = a[(n - 1) >> 1];
+    for (let p = 0; p < 4; p++) rivers[p][t] = S.hist.filter((h) => h.riv[p][t] > 0).length * 2 > n ? 1 : 0;
+  }
+  const c = new Int8Array(34);
+  for (const t of S.hand) c[t]++;
+  for (let t = 0; t < 34; t++) seen[t] = Math.max(0, Math.min(seen[t], 4 - c[t]));
+  const threats = [1, 2, 3].filter((p) => S.threats[p]).map((p) => ({ seat: p, river: rivers[p] }));
+  S.ownRiver = rivers[0];
+  const key = [S.hand.join(','), Array.from(seen).join(''), threats.map((t) => t.seat + ':' + Array.from(t.river).join('')).join('|'), Array.from(rivers[0]).join(''), S.round, S.seat].join('/');
+  if (key === S.lastKey) return;
+  S.lastKey = key;
+  analyze(c, seen, threats);
+}
+
+function analyze(c, seen, threats) {
+  const n = S.hand.length, head = $('head');
+  head.className = '';
+  S.pickIdx = -1;
+  const showHand = (danger) => {
+    $('secHand').hidden = !n;
+    let h = '';
+    S.hand.forEach((t, i) => {
+      if (i === n - 1 && n % 3 === 2 && S.handBoxes && S.handBoxes[i] && S.handBoxes[i - 1] &&
+        (S.handBoxes[i].x - S.handBoxes[i - 1].x) > S.handBoxes[i].w * 1.12) h += '<span class="gap"></span>';
+      const d = danger ? danger[t] : null;
+      h += `<span class="slot">${tileEl(t, (S.handConf[i] < 0.6 ? 'low' : ''))}<span class="bar ${d != null ? dcls(d) : ''}"></span></span>`;
+    });
+    $('handrow').innerHTML = h;
+  };
+  if (!n) {
+    head.innerHTML = '<div class="txt"><div class="ttl">手牌を探しています…</div><div class="sub">ゲーム画面全体が映るようにカメラを向けてください</div></div>';
+    $('secHand').hidden = true; $('secList').hidden = true;
+    return;
+  }
+  if (n % 3 === 0 || n > 14) {
+    showHand(null);
+    head.innerHTML = `<div class="txt"><div class="ttl">手牌 ${n}枚(枚数が合いません)</div><div class="sub">一部の牌を読み落としている可能性があります。角度や距離を少し変えてみてください</div></div>`;
+    $('secList').hidden = true;
+    return;
+  }
+  const melds = Math.floor((14 - n) / 3);
+  const opt = { melds, seen, threats, winds: { round: S.round, seat: S.seat } };
+  const danger = threats.length ? Array.from({ length: 34 }, (_, t) => MJ.dangerOf(t, threats, seen, c)) : null;
+  showHand(danger);
+  const waitsHtml = (w) => w.filter((x) => x.n > 0).map((x) => tileEl(x.t, 'sm', x.n)).join('');
+  const furiten = (w) => S.ownRiver && w.some((x) => S.ownRiver[x.t]);
+  if (n % 3 === 2) {
+    // ---- 自分の番: 何を切るか
+    const a = MJ.analyzeDiscard(c, opt);
+    const p = a.pick;
+    S.pickIdx = S.hand.lastIndexOf(p.t);
+    head.className = a.mode;
+    const ttl = a.mode === 'agari' ? 'ツモ和了形!' : `打 ${MJ.label(p.t)}` + (a.mode === 'fold' ? '(オリ)' : a.mode === 'push' ? '(押し)' : '');
+    const sub = a.mode === 'agari' ? a.note : `${shName(p.shanten)}・受け入れ ${p.ukeire}枚` + (p.shanten === 0 && melds === 0 ? '・リーチ可' : '') + (p.shanten === 0 && furiten(p.waits) ? '・<b style="color:var(--bad)">フリテン</b>' : '') + (a.note ? '<br>' + a.note : '');
+    head.innerHTML = (a.mode === 'agari' ? '' : tileEl(p.t, 'big')) + `<div class="txt"><div class="ttl">${ttl}</div><div class="sub">${sub}</div></div>`;
+    $('listTitle').textContent = '打牌候補(牌効率順)';
+    $('list').innerHTML = a.cands.slice(0, 6).map((x) => `<div class="row">${tileEl(x.t)}<span class="meta">${shName(x.shanten)} ${x.ukeire}枚${x.danger != null ? `<span class="badge ${dcls(x.danger)}">${MJ.dangerLabel(x.danger)}</span>` : ''}</span><span class="w">${waitsHtml(x.waits)}</span></div>`).join('');
+    $('secList').hidden = a.mode === 'agari';
+    speak(a.mode === 'agari' ? 'ツモ' : MJ.label(p.t) + '切り');
+  } else {
+    // ---- 相手の番: 鳴き判断と待ち
+    const k = MJ.analyzeCalls(c, opt);
+    let ttl, sub;
+    if (k.shanten === 0) {
+      head.className = 'agari';
+      ttl = '聴牌 — 待ち ' + k.waits.filter((x) => x.n > 0).map((x) => MJ.label(x.t)).join(' ');
+      sub = furiten(k.waits) ? `残り ${k.ukeire}枚。<b style="color:var(--bad)">フリテン: 自分の河に待ち牌があるのでロン不可(ツモのみ)</b>` : `残り ${k.ukeire}枚。出たらロン(役の有無に注意)`;
+      head.innerHTML = `<div class="txt"><div class="ttl">${ttl}</div><div class="sub">${sub}</div><div class="w" style="margin-top:6px;display:flex;gap:4px">${waitsHtml(k.waits)}</div></div>`;
+      speak('テンパイ');
+    } else {
+      const good = k.calls.filter((x) => x.good);
+      ttl = good.length ? '鳴ける牌あり: ' + [...new Set(good.map((x) => MJ.label(x.t)))].slice(0, 5).join(' ') : `${shName(k.shanten)}・鳴きは不要`;
+      sub = `受け入れ ${k.ukeire}枚` + (threats.length ? '・手牌下のバーが危険度' : '');
+      head.innerHTML = `<div class="txt"><div class="ttl">${ttl}</div><div class="sub">${sub}</div><div class="w" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">${waitsHtml(k.waits)}</div></div>`;
+    }
+    $('listTitle').textContent = '鳴き判断(この牌が出たら)';
+    $('list').innerHTML = k.calls.length ? k.calls.slice(0, 7).map((x) => `<div class="call ${x.good ? 'good' : 'meh'}">${tileEl(x.t)}<div><b>${x.kind === 'pon' ? 'ポン' : 'チー(上家から)'}</b> → ${shName(x.shanten)} ${x.ukeire}枚・打${MJ.label(x.discard)}<br><span style="color:var(--mute)">${x.kind === 'chi' ? x.use.map((u) => MJ.label(u)).join('') + 'で。' : ''}${x.hints.length ? '役の目安: ' + x.hints.join(' / ') : melds ? '副露済み' : '役なし注意(見送り推奨)'}</span></div></div>`).join('') : '<div class="hint">向聴数が進む鳴きはありません</div>';
+    $('secList').hidden = k.shanten === 0;
+  }
+}
+
+function speak(text) {
+  if (!S.voice || text === S.spoken || !('speechSynthesis' in window)) return;
+  S.spoken = text;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'ja-JP'; u.rate = 1.3;
+  speechSynthesis.speak(u);
+}
+
+function draw() {
+  const el = S.src, res = S.res;
+  if (!res) return;
+  const r = el.getBoundingClientRect(), pr = $('view').getBoundingClientRect();
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  overlay.style.left = (r.left - pr.left) + 'px'; overlay.style.top = (r.top - pr.top) + 'px';
+  overlay.style.width = r.width + 'px'; overlay.style.height = r.height + 'px';
+  if (overlay.width !== Math.round(r.width * dpr)) overlay.width = Math.round(r.width * dpr);
+  if (overlay.height !== Math.round(r.height * dpr)) overlay.height = Math.round(r.height * dpr);
+  const g = overlay.getContext('2d'), k = overlay.width / res.fw;
+  g.clearRect(0, 0, overlay.width, overlay.height);
+  g.lineWidth = Math.max(1, dpr);
+  g.font = `${Math.round(9 * dpr)}px sans-serif`;
+  for (const b of res.tiles) {
+    if (!b.zone) continue;
+    g.strokeStyle = ZCOL[b.zone] || '#999';
+    g.strokeRect((b.x - b.w / 2) * k, (b.y - b.h / 2) * k, b.w * k, b.h * k);
+    if (b.w * k > 17 * dpr) {
+      const s = MJ.NAMES[b.t];
+      g.fillStyle = '#000b'; g.fillRect((b.x - b.w / 2) * k, (b.y - b.h / 2) * k - 10 * dpr, g.measureText(s).width + 4, 10 * dpr);
+      g.fillStyle = ZCOL[b.zone]; g.fillText(s, (b.x - b.w / 2) * k + 2, (b.y - b.h / 2) * k - 2 * dpr);
+    }
+  }
+  // 切る牌を映像上で強調
+  const hb = S.lay && S.lay.hand;
+  if (S.pickIdx >= 0 && hb && hb.length === S.hand.length && hb[S.pickIdx] && hb[S.pickIdx].t === S.hand[S.pickIdx]) {
+    const b = hb[S.pickIdx];
+    g.strokeStyle = '#ff2d55'; g.lineWidth = 4 * dpr;
+    g.strokeRect((b.x - b.w / 2) * k - 2, (b.y - b.h / 2) * k - 2, b.w * k + 4, b.h * k + 4);
+    g.fillStyle = '#ff2d55';
+    const cx = b.x * k, top = (b.y - b.h / 2) * k - 6 * dpr;
+    g.beginPath(); g.moveTo(cx, top); g.lineTo(cx - 9 * dpr, top - 14 * dpr); g.lineTo(cx + 9 * dpr, top - 14 * dpr); g.closePath(); g.fill();
+  }
+}
+
+// ---- 操作
+document.querySelectorAll('[data-th]').forEach((b) => (b.onclick = () => {
+  const p = +b.dataset.th; S.threats[p] = !S.threats[p]; b.classList.toggle('on', S.threats[p]); S.lastKey = '';
+}));
+$('bRound').onclick = () => { S.round = (S.round + 1) % 2; $('bRound').textContent = WIND[S.round]; S.lastKey = ''; };
+$('bSeat').onclick = () => { S.seat = (S.seat + 1) % 4; $('bSeat').textContent = WIND[S.seat]; S.lastKey = ''; };
+$('bVoice').onclick = () => { S.voice = !S.voice; $('bVoice').textContent = S.voice ? '🔊' : '🔇'; $('bVoice').classList.toggle('sel', S.voice); if (S.voice) { S.spoken = ''; S.lastKey = ''; } };
+$('bSpeed').onclick = () => { S.detW = S.detW === 640 ? 960 : 640; $('bSpeed').textContent = S.detW === 640 ? '速度優先' : '精度優先'; $('bSpeed').classList.toggle('sel', S.detW !== 640); };
+window.addEventListener('resize', draw);
+</script>
+</body>
+</html>
