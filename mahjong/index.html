@@ -49,7 +49,13 @@ button{font:inherit;color:inherit;border:0;border-radius:10px;cursor:pointer}
 .call{display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--line);font-size:13px}
 .call:first-of-type{border-top:0}
 .call b{font-size:14px}
-.call.good b{color:var(--good)} .call.meh b{color:var(--mute)}
+.call.call b{color:var(--good)} .call.maybe b{color:var(--acc)} .call.skip b{color:var(--mute)} .call.skip .t{opacity:.55}
+#handrow .slot.dora .t{box-shadow:0 1px 0 #b9b39f,0 0 0 2px var(--bad)}
+#doraRow{display:flex;align-items:center;gap:6px;font-size:13px;margin-top:8px;flex-wrap:wrap}
+#picker{position:fixed;inset:0;background:#000c;display:flex;align-items:center;justify-content:center;z-index:9;padding:14px}
+#picker .box{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;max-width:420px}
+#picker .grid{display:grid;grid-template-columns:repeat(9,1fr);gap:5px;margin:10px 0}
+#picker .grid .t{width:100%;cursor:pointer}
 #ctrl{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .tg{background:#202b25;border:1px solid var(--line);font-size:13px;padding:8px 11px;color:var(--ink)}
 .tg.on{background:#7f1d1d;border-color:#f87171;color:#fff}
@@ -93,12 +99,14 @@ button{font:inherit;color:inherit;border:0;border-radius:10px;cursor:pointer}
         <button class="tg" id="bVoice">🔇</button>
         <button class="tg" id="bSpeed">速度優先</button>
       </div>
+      <div id="doraRow"><span class="lbl" style="margin-left:0">ドラ表示牌</span><span id="doraInd">未検出</span><button class="tg" id="bDora" style="padding:5px 9px;font-size:12px">変更</button></div>
     </div>
     <div class="sec" id="secHand" hidden><h2>読み取った手牌</h2><div id="handrow"></div></div>
     <div class="sec" id="secList" hidden><h2 id="listTitle">打牌候補</h2><div id="list"></div></div>
-    <div class="hint" id="hint">枠の色: <span style="color:#ffd23f">■</span>手牌 <span style="color:#4ade80">■</span>自分の河 <span style="color:#f87171">■</span>下家 <span style="color:#c084fc">■</span>対面 <span style="color:#38bdf8">■</span>上家 <span style="color:#9ca3af">■</span>その他(副露・ドラ表示)。認識は端末内で完結し、映像は送信されません。オンライン対戦での利用は各ゲームの規約をご確認ください。</div>
+    <div class="hint" id="hint">枠の色: <span style="color:#ffd23f">■</span>手牌 <span style="color:#4ade80">■</span>自分の河 <span style="color:#f87171">■</span>下家 <span style="color:#c084fc">■</span>対面 <span style="color:#38bdf8">■</span>上家 <span style="color:#ff7ab6">■</span>ドラ表示牌 <span style="color:#9ca3af">■</span>その他(副露など)。認識は端末内で完結し、映像は送信されません。オンライン対戦での利用は各ゲームの規約をご確認ください。</div>
   </div>
 </div>
+<div id="picker" hidden style="display:none"><div class="box"><div style="font-size:14px;font-weight:700">ドラ表示牌を選ぶ</div><div class="grid" id="pickGrid"></div><button class="tg" id="pickAuto">自動に戻す</button> <button class="tg" id="pickClose">閉じる</button></div></div>
 <script src="ort/ort.wasm.min.js"></script>
 <script src="engine.js"></script>
 <script src="vision.js"></script>
@@ -124,7 +132,7 @@ const S = {
   src: null, running: false, threats: [false, false, false, false], round: 0, seat: 0, voice: false, detW: 640,
   hist: [], lastRawKey: '', hand: [], handTiles: [], lastKey: '', pickBox: null, lay: null, res: null, spoken: '',
 };
-const ZCOL = { hand: '#ffd23f', river0: '#4ade80', river1: '#f87171', river2: '#c084fc', river3: '#38bdf8', other: '#9ca3af' };
+const ZCOL = { dora: '#ff7ab6', hand: '#ffd23f', river0: '#4ade80', river1: '#f87171', river2: '#c084fc', river3: '#38bdf8', other: '#9ca3af' };
 const WIND = ['東', '南', '西', '北'];
 const tileEl = (t, cls, n) => `<span class="t ${cls || ''}"><img src="tiles/${t}.svg" alt="${MJ.label(t)}">${n != null ? `<span class="n">${n}</span>` : ''}</span>`;
 const dcls = (v) => (v <= 0 ? 'd0' : v <= 6 ? 'd1' : v <= 12 ? 'd2' : v <= 20 ? 'd3' : 'd4');
@@ -186,6 +194,7 @@ async function loop() {
   }
 }
 
+const SEAT = ['自分', '下家', '対面', '上家'];
 function update(res) {
   const lay = Vision.layout(res.tiles);
   S.lay = lay;
@@ -194,33 +203,51 @@ function update(res) {
   const vis = new Int8Array(34), riv = [new Int8Array(34), new Int8Array(34), new Int8Array(34), new Int8Array(34)];
   lay.rivers.forEach((r, p) => r.forEach((b) => { vis[b.t]++; riv[p][b.t]++; }));
   lay.others.forEach((b) => vis[b.t]++);
-  S.hist.push({ vis, riv });
+  S.hist.push({ vis, riv, dora: lay.dora.map((b) => b.t).join(',') });
   if (S.hist.length > 5) S.hist.shift();
   // 手牌は2フレーム連続で同じ読みになったら採用 (静止画は即採用)
   const stable = rawKey === S.lastRawKey || S.src === still;
   S.lastRawKey = rawKey;
   if (stable) { S.hand = hand.map((b) => b.t); S.handConf = hand.map((b) => b.conf); S.handBoxes = hand; }
   else if (S.handBoxes && hand.length === S.hand.length) S.handBoxes = hand; // 枠だけ追従
-  // 見えている枚数は直近フレームの中央値、河は過半数のフレームで見えた牌
+  // 見えている枚数・河は直近フレームの中央値
   const seen = new Int8Array(34), rivers = riv.map(() => new Int8Array(34));
-  const n = S.hist.length;
+  const n = S.hist.length, mid = (n - 1) >> 1;
   for (let t = 0; t < 34; t++) {
-    const a = S.hist.map((h) => h.vis[t]).sort((x, y) => x - y);
-    seen[t] = a[(n - 1) >> 1];
-    for (let p = 0; p < 4; p++) rivers[p][t] = S.hist.filter((h) => h.riv[p][t] > 0).length * 2 > n ? 1 : 0;
+    seen[t] = S.hist.map((h) => h.vis[t]).sort((x, y) => x - y)[mid];
+    for (let p = 0; p < 4; p++) rivers[p][t] = S.hist.map((h) => h.riv[p][t]).sort((x, y) => x - y)[n >> 1];
   }
   const c = new Int8Array(34);
   for (const t of S.hand) c[t]++;
   for (let t = 0; t < 34; t++) seen[t] = Math.max(0, Math.min(seen[t], 4 - c[t]));
+  // ドラ表示牌: 直近フレームで最も多かった読み (手動指定があればそちら)
+  const votes = {};
+  for (const h of S.hist) if (h.dora) votes[h.dora] = (votes[h.dora] || 0) + 1;
+  const top = Object.keys(votes).sort((x, y) => votes[y] - votes[x])[0];
+  if (top && votes[top] * 2 > n) S.doraAuto = top.split(',').map(Number);
+  S.doraInd = S.doraManual || S.doraAuto || [];
+  const dora = new Int8Array(34);
+  for (const d of S.doraInd) dora[MJ.doraOf(d)]++;
+  // 直前の捨て牌: 相手の河に 1 枚だけ増えた牌
+  if (n >= 3 && S.src !== still) {
+    if (S.prevR) {
+      const inc = [];
+      for (let p = 1; p < 4; p++) for (let t = 0; t < 34; t++) if (rivers[p][t] > S.prevR[p][t]) inc.push({ t, seat: p });
+      if (inc.length === 1) { S.last = Object.assign(inc[0], { at: performance.now() }); clearTimeout(S.lastTimer); S.lastTimer = setTimeout(() => { S.last = null; S.lastKey = ''; }, 12000); }
+    }
+    S.prevR = rivers;
+  }
   const threats = [1, 2, 3].filter((p) => S.threats[p]).map((p) => ({ seat: p, river: rivers[p] }));
   S.ownRiver = rivers[0];
-  const key = [S.hand.join(','), Array.from(seen).join(''), threats.map((t) => t.seat + ':' + Array.from(t.river).join('')).join('|'), Array.from(rivers[0]).join(''), S.round, S.seat].join('/');
+  const key = [S.hand.join(','), Array.from(seen).join(''), threats.map((t) => t.seat + ':' + Array.from(t.river).join('')).join('|'), Array.from(rivers[0]).join(''),
+    S.round, S.seat, S.doraInd.join(','), S.last ? S.last.t + ':' + S.last.seat : ''].join('/');
   if (key === S.lastKey) return;
   S.lastKey = key;
-  analyze(c, seen, threats);
+  $('doraInd').innerHTML = S.doraInd.length ? S.doraInd.map((t) => tileEl(t, 'sm')).join('') + ' → ドラ ' + S.doraInd.map((t) => tileEl(MJ.doraOf(t), 'sm')).join('') + (S.doraManual ? '(手動)' : '') : '未検出';
+  analyze(c, seen, threats, dora);
 }
 
-function analyze(c, seen, threats) {
+function analyze(c, seen, threats, dora) {
   const n = S.hand.length, head = $('head');
   head.className = '';
   S.pickIdx = -1;
@@ -231,7 +258,7 @@ function analyze(c, seen, threats) {
       if (i === n - 1 && n % 3 === 2 && S.handBoxes && S.handBoxes[i] && S.handBoxes[i - 1] &&
         (S.handBoxes[i].x - S.handBoxes[i - 1].x) > S.handBoxes[i].w * 1.12) h += '<span class="gap"></span>';
       const d = danger ? danger[t] : null;
-      h += `<span class="slot">${tileEl(t, (S.handConf[i] < 0.6 ? 'low' : ''))}<span class="bar ${d != null ? dcls(d) : ''}"></span></span>`;
+      h += `<span class="slot${dora && dora[t] ? ' dora' : ''}">${tileEl(t, (S.handConf[i] < 0.6 ? 'low' : ''))}<span class="bar ${d != null ? dcls(d) : ''}"></span></span>`;
     });
     $('handrow').innerHTML = h;
   };
@@ -247,11 +274,12 @@ function analyze(c, seen, threats) {
     return;
   }
   const melds = Math.floor((14 - n) / 3);
-  const opt = { melds, seen, threats, winds: { round: S.round, seat: S.seat } };
+  const opt = { melds, seen, threats, dora, winds: { round: S.round, seat: S.seat } };
   const danger = threats.length ? Array.from({ length: 34 }, (_, t) => MJ.dangerOf(t, threats, seen, c)) : null;
   showHand(danger);
   const waitsHtml = (w) => w.filter((x) => x.n > 0).map((x) => tileEl(x.t, 'sm', x.n)).join('');
   const furiten = (w) => S.ownRiver && w.some((x) => S.ownRiver[x.t]);
+  const doraTxt = (k) => (k ? `・ドラ${k}枚` : '');
   if (n % 3 === 2) {
     // ---- 自分の番: 何を切るか
     const a = MJ.analyzeDiscard(c, opt);
@@ -259,30 +287,44 @@ function analyze(c, seen, threats) {
     S.pickIdx = S.hand.lastIndexOf(p.t);
     head.className = a.mode;
     const ttl = a.mode === 'agari' ? 'ツモ和了形!' : `打 ${MJ.label(p.t)}` + (a.mode === 'fold' ? '(オリ)' : a.mode === 'push' ? '(押し)' : '');
-    const sub = a.mode === 'agari' ? a.note : `${shName(p.shanten)}・受け入れ ${p.ukeire}枚` + (p.shanten === 0 && melds === 0 ? '・リーチ可' : '') + (p.shanten === 0 && furiten(p.waits) ? '・<b style="color:var(--bad)">フリテン</b>' : '') + (a.note ? '<br>' + a.note : '');
+    const sub = a.mode === 'agari' ? a.note : `${shName(p.shanten)}・受け入れ ${p.ukeire}枚` + doraTxt(a.doraCount) + (p.shanten === 0 && melds === 0 ? '・リーチ可' : '') + (p.shanten === 0 && furiten(p.waits) ? '・<b style="color:var(--bad)">フリテン</b>' : '') + (a.note ? '<br>' + a.note : '');
     head.innerHTML = (a.mode === 'agari' ? '' : tileEl(p.t, 'big')) + `<div class="txt"><div class="ttl">${ttl}</div><div class="sub">${sub}</div></div>`;
     $('listTitle').textContent = '打牌候補(牌効率順)';
-    $('list').innerHTML = a.cands.slice(0, 6).map((x) => `<div class="row">${tileEl(x.t)}<span class="meta">${shName(x.shanten)} ${x.ukeire}枚${x.danger != null ? `<span class="badge ${dcls(x.danger)}">${MJ.dangerLabel(x.danger)}</span>` : ''}</span><span class="w">${waitsHtml(x.waits)}</span></div>`).join('');
+    $('list').innerHTML = a.cands.slice(0, 6).map((x) => `<div class="row">${tileEl(x.t)}<span class="meta">${shName(x.shanten)} ${x.ukeire}枚${x.dora ? '<span class="badge d4">ドラ</span>' : ''}${x.danger != null ? `<span class="badge ${dcls(x.danger)}">${MJ.dangerLabel(x.danger)}</span>` : ''}</span><span class="w">${waitsHtml(x.waits)}</span></div>`).join('');
     $('secList').hidden = a.mode === 'agari';
     speak(a.mode === 'agari' ? 'ツモ' : MJ.label(p.t) + '切り');
   } else {
-    // ---- 相手の番: 鳴き判断と待ち
+    // ---- 相手の番: 鳴くかどうかと待ち
     const k = MJ.analyzeCalls(c, opt);
-    let ttl, sub;
+    const last = S.last && performance.now() - S.last.at < 12000 ? S.last : null;
+    const kindJa = (x) => (x.kind === 'pon' ? 'ポン' : 'チー');
+    const VERD = { call: '鳴く', maybe: '微妙', skip: 'スルー' };
+    let html;
     if (k.shanten === 0) {
       head.className = 'agari';
-      ttl = '聴牌 — 待ち ' + k.waits.filter((x) => x.n > 0).map((x) => MJ.label(x.t)).join(' ');
-      sub = furiten(k.waits) ? `残り ${k.ukeire}枚。<b style="color:var(--bad)">フリテン: 自分の河に待ち牌があるのでロン不可(ツモのみ)</b>` : `残り ${k.ukeire}枚。出たらロン(役の有無に注意)`;
-      head.innerHTML = `<div class="txt"><div class="ttl">${ttl}</div><div class="sub">${sub}</div><div class="w" style="margin-top:6px;display:flex;gap:4px">${waitsHtml(k.waits)}</div></div>`;
-      speak('テンパイ');
+      const ron = last && k.waits.some((x) => x.t === last.t);
+      const ttl = ron ? `${SEAT[last.seat]}の ${MJ.label(last.t)} → ロン!` : '聴牌 — 待ち ' + k.waits.filter((x) => x.n > 0).map((x) => MJ.label(x.t)).join(' ');
+      const sub = furiten(k.waits) ? `残り ${k.ukeire}枚。<b style="color:var(--bad)">フリテン: 自分の河に待ち牌があるのでロン不可(ツモのみ)</b>` : `残り ${k.ukeire}枚。出たらロン(役の有無に注意)`;
+      html = `<div class="txt"><div class="ttl">${ttl}</div><div class="sub">${sub}</div><div class="w" style="margin-top:6px;display:flex;gap:4px">${waitsHtml(k.waits)}</div></div>`;
+      speak(ron ? 'ロン' : 'テンパイ');
     } else {
-      const good = k.calls.filter((x) => x.good);
-      ttl = good.length ? '鳴ける牌あり: ' + [...new Set(good.map((x) => MJ.label(x.t)))].slice(0, 5).join(' ') : `${shName(k.shanten)}・鳴きは不要`;
-      sub = `受け入れ ${k.ukeire}枚` + (threats.length ? '・手牌下のバーが危険度' : '');
-      head.innerHTML = `<div class="txt"><div class="ttl">${ttl}</div><div class="sub">${sub}</div><div class="w" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">${waitsHtml(k.waits)}</div></div>`;
+      const go = k.calls.filter((x) => x.verdict === 'call');
+      let ttl;
+      if (last) {
+        // 今出た牌に対する判定 (チーは上家からのみ)
+        const m = k.calls.filter((x) => x.t === last.t && (x.kind === 'pon' || last.seat === 3));
+        const best = m[0];
+        if (best && best.verdict === 'call') { ttl = `${SEAT[last.seat]}の ${MJ.label(last.t)} → ${kindJa(best)}!`; head.className = 'push'; speak(kindJa(best)); }
+        else ttl = `${SEAT[last.seat]}の ${MJ.label(last.t)} → スルー` + (best ? `(${best.reason})` : '');
+      } else if (go.length) ttl = '出たら鳴く: ' + [...new Set(go.map((x) => kindJa(x) + MJ.label(x.t)))].slice(0, 4).join(' ');
+      else { const mb = k.calls.filter((x) => x.verdict === 'maybe'); ttl = mb.length ? '基本スルー(' + [...new Set(mb.map((x) => kindJa(x) + MJ.label(x.t)))].slice(0, 3).join('・') + 'は微妙)' : k.calls.length ? '鳴きはすべてスルー' : '鳴ける牌なし'; }
+      const sub = `${shName(k.shanten)}・受け入れ ${k.ukeire}枚` + doraTxt(k.doraCount) + (threats.length ? '・手牌下のバーが危険度' : '');
+      html = (last ? tileEl(last.t, 'big') : '') + `<div class="txt"><div class="ttl">${ttl}</div><div class="sub">${sub}</div><div class="w" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">${waitsHtml(k.waits)}</div></div>`;
     }
+    head.innerHTML = html;
     $('listTitle').textContent = '鳴き判断(この牌が出たら)';
-    $('list').innerHTML = k.calls.length ? k.calls.slice(0, 7).map((x) => `<div class="call ${x.good ? 'good' : 'meh'}">${tileEl(x.t)}<div><b>${x.kind === 'pon' ? 'ポン' : 'チー(上家から)'}</b> → ${shName(x.shanten)} ${x.ukeire}枚・打${MJ.label(x.discard)}<br><span style="color:var(--mute)">${x.kind === 'chi' ? x.use.map((u) => MJ.label(u)).join('') + 'で。' : ''}${x.hints.length ? '役の目安: ' + x.hints.join(' / ') : melds ? '副露済み' : '役なし注意(見送り推奨)'}</span></div></div>`).join('') : '<div class="hint">向聴数が進む鳴きはありません</div>';
+    $('list').innerHTML = k.calls.length ? k.calls.slice(0, 9).map((x) => `<div class="call ${x.verdict}">${tileEl(x.t)}<div><b>${kindJa(x)}${x.kind === 'chi' ? '(上家から)' : ''} → ${VERD[x.verdict]}</b> <span style="color:var(--mute)">${x.reason}</span>` +
+      (x.verdict === 'skip' ? '' : `<br>${shName(x.shanten)} ${x.ukeire}枚・打${MJ.label(x.discard)}${x.kind === 'chi' ? '・' + x.use.map((u) => MJ.label(u)).join('') + 'で' : ''}${x.hints.length ? '・役: ' + x.hints.join(' / ') : ''}`) + `</div></div>`).join('') : '<div class="hint">ポン・チーできる形がありません</div>';
     $('secList').hidden = k.shanten === 0;
   }
 }
@@ -339,6 +381,14 @@ $('bRound').onclick = () => { S.round = (S.round + 1) % 2; $('bRound').textConte
 $('bSeat').onclick = () => { S.seat = (S.seat + 1) % 4; $('bSeat').textContent = WIND[S.seat]; S.lastKey = ''; };
 $('bVoice').onclick = () => { S.voice = !S.voice; $('bVoice').textContent = S.voice ? '🔊' : '🔇'; $('bVoice').classList.toggle('sel', S.voice); if (S.voice) { S.spoken = ''; S.lastKey = ''; } };
 $('bSpeed').onclick = () => { S.detW = S.detW === 640 ? 960 : 640; $('bSpeed').textContent = S.detW === 640 ? '速度優先' : '精度優先'; $('bSpeed').classList.toggle('sel', S.detW !== 640); };
+$('bDora').onclick = () => {
+  $('pickGrid').innerHTML = Array.from({ length: 34 }, (_, t) => `<span data-t="${t}">${tileEl(t)}</span>`).join('');
+  $('picker').hidden = false; $('picker').style.display = 'flex';
+};
+const closePick = () => { $('picker').hidden = true; $('picker').style.display = 'none'; S.lastKey = ''; };
+$('pickGrid').onclick = (e) => { const el = e.target.closest('[data-t]'); if (!el) return; S.doraManual = [+el.dataset.t]; closePick(); };
+$('pickAuto').onclick = () => { S.doraManual = null; closePick(); };
+$('pickClose').onclick = closePick;
 window.addEventListener('resize', draw);
 </script>
 </body>

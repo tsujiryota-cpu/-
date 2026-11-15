@@ -58,3 +58,16 @@ const t0 = Date.now();
 for (let i = 0; i < 200; i++) { const c = rndAgari(r); c[(r() * 34) | 0] < 4 && MJ.analyzeDiscard(c, {}); }
 console.log('200 analyzeDiscard ms', Date.now() - t0);
 console.log('ok');
+// ドラと鳴き判定
+assert.strictEqual(MJ.doraOf(8), 0); assert.strictEqual(MJ.doraOf(25), 26); assert.strictEqual(MJ.doraOf(30), 27); assert.strictEqual(MJ.doraOf(33), 31); assert.strictEqual(MJ.doraOf(31), 32);
+const show = (k) => k.calls.map((x) => (x.kind === 'pon' ? 'ポン' : 'チー') + MJ.NAMES[x.t] + ':' + x.verdict + '(' + x.reason + ')').join(' | ');
+k = MJ.analyzeCalls(MJ.parse('5578m66p889s2277z'), { winds: { round: 0, seat: 0 } });
+console.log('user hand', k.shanten, show(k));
+k = MJ.analyzeCalls(MJ.parse('23m45p678s55z1199m'.replace('1199m', '') + '19m1p'), { winds: { round: 0, seat: 1 } });
+console.log('yakuhai', k.shanten, show(k));
+k = MJ.analyzeCalls(MJ.parse('2345m4566p3478s8s'), { winds: { round: 0, seat: 1 } });
+console.log('tanyao menzen', k.shanten, k.ukeire, show(k));
+const dora = new Int8Array(34); dora[26] = 1;
+a = MJ.analyzeDiscard(MJ.parse('123m456p78s9s1123z'.replace('9s1123z', '') + '9s113z5m'), { dora });
+console.log('dora keep:', a.cands.slice(0, 3).map((x) => MJ.NAMES[x.t] + ':' + x.shanten + '/' + x.ukeire + (x.dora ? 'D' : '')).join(' '), 'dora in hand', a.doraCount);
+console.log('ok2');

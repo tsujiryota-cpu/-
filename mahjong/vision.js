@@ -219,7 +219,7 @@
     for (const b of hand) b.zone = 'hand';
     const rest = tiles.filter((b) => !hs.has(b) && !b.fill && b.conf >= minConf && !(b.junk > 0.5));
     const rivers = [[], [], [], []], others = [];
-    if (!rest.length) return { hand, rivers, others, center: null };
+    if (!rest.length) return { hand, rivers, others, dora: [], center: null };
     const hw = hand.length ? med(hand.map((b) => b.w)) : Infinity;
     // 河の牌サイズ s (手牌より小さい牌の短辺の中央値)
     const small = rest.filter((b) => Math.min(b.w, b.h) < hw * 0.92);
@@ -232,7 +232,7 @@
     // 中心の初期値
     let cx = U.length >= 3 ? med(U.map((b) => b.x)) : Sd.length >= 4 ? (Math.min(...Sd.map((b) => b.x)) + Math.max(...Sd.map((b) => b.x))) / 2 : hx;
     let cy = Sd.length >= 3 ? med(Sd.map((b) => b.y)) : hy !== null ? hy - 3.6 * hh : U.length ? (Math.min(...U.map((b) => b.y)) + Math.max(...U.map((b) => b.y))) / 2 : null;
-    if (cx === null || cy === null) { for (const b of rest) { b.zone = 'other'; others.push(b); } return { hand, rivers, others, center: null }; }
+    if (cx === null || cy === null) { for (const b of rest) { b.zone = 'other'; others.push(b); } return { hand, rivers, others, dora: [], center: null }; }
     // 河の範囲 (牌幅 s 単位, 各家から見た座標): 奥行き v は中心から R0〜R1、横 u は 6 枚幅 (±3) + 最終段のはみ出し分
     const R0 = opt.rMin || 1.6, R1 = opt.rMax || 9, UL = opt.uLeft || 4, UR = opt.uRight || 7.5;
     const assign = () => {
@@ -313,7 +313,19 @@
       b.zone = p >= 0 ? 'river' + p : 'other';
       (p >= 0 ? rivers[p] : others).push(b);
     }
-    return { hand, rivers, others, center: { x: cx, y: cy }, s };
+    // ドラ表示牌: 河でも手牌でもない正立の牌のうち、卓の左上にあるもの (同じ段で右に続く牌はカンドラ)
+    const dc = others.filter((b) => b.w < b.h && b.conf >= 0.6 && b.x < cx - 4 * s && b.y < cy - 2.5 * s);
+    let dora = [];
+    if (dc.length) {
+      dc.sort((a, b) => (a.x + a.y) - (b.x + b.y));
+      const d0 = dc[0];
+      dora = dc.filter((b) => Math.abs(b.y - d0.y) < d0.h * 0.35 && b.h > d0.h * 0.8 && b.h < d0.h * 1.25).sort((a, b) => a.x - b.x);
+      let n = 1;
+      while (n < dora.length && dora[n].x - dora[n - 1].x < d0.w * 1.4) n++;
+      dora = dora.slice(0, Math.min(n, 5));
+      for (const b of dora) b.zone = 'dora';
+    }
+    return { hand, rivers, others, dora, center: { x: cx, y: cy }, s };
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = V;

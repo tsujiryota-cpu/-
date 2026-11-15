@@ -10,6 +10,14 @@
   const SUIT_JA = ['萬', '筒', '索'];
   const label = (t) => (t < 27 ? (t % 9 + 1) + SUIT_JA[(t / 9) | 0] : KANJI[t - 27]);
 
+  // ドラ表示牌 → ドラ
+  function doraOf(ind) {
+    if (ind < 27) return ind - (ind % 9) + ((ind % 9) + 1) % 9;
+    if (ind < 31) return 27 + ((ind - 27 + 1) % 4);
+    return 31 + ((ind - 31 + 1) % 3);
+  }
+  const countDora = (c, dora) => { let n = 0; if (dora) for (let t = 0; t < 34; t++) n += c[t] * dora[t]; return n; };
+
   // ---------- 向聴数 ----------
   // 1色(9種)について [雀頭あり/なし][面子数 m] → 最大の搭子数 を返す (メモ化)
   const suitMemo = new Map();
@@ -189,7 +197,7 @@
     return v;
   }
   function analyzeDiscard(c, opt) {
-    const melds = opt.melds || 0, seen = opt.seen || new Int8Array(34), threats = opt.threats || [];
+    const melds = opt.melds || 0, seen = opt.seen || new Int8Array(34), threats = opt.threats || [], dora = opt.dora || null;
     const cur = shanten(c, melds);
     const cands = [];
     for (let t = 0; t < 34; t++) {
@@ -199,9 +207,13 @@
       const u = ukeire(c, melds, seen, s);
       const iso = isolationScore(c, t);
       c[t]++;
-      cands.push({ t, shanten: s, ukeire: u.total, waits: u.tiles, iso, danger: threats.length ? dangerOf(t, threats, seen, c) : null });
+      const isDora = dora ? dora[t] : 0;
+      let danger = threats.length ? dangerOf(t, threats, seen, c) : null;
+      if (danger && isDora) danger = Math.min(40, Math.round(danger * 1.25));
+      // ドラは受け入れ5枚ぶんの価値があるとみなして残す
+      cands.push({ t, shanten: s, ukeire: u.total, score: u.total - 5 * isDora, waits: u.tiles, iso, danger, dora: isDora });
     }
-    const eff = (a, b) => a.shanten - b.shanten || b.ukeire - a.ukeire || a.iso - b.iso || (a.danger || 0) - (b.danger || 0);
+    const eff = (a, b) => a.shanten - b.shanten || b.score - a.score || a.iso - b.iso || (a.danger || 0) - (b.danger || 0);
     cands.sort(eff);
     const best = cands[0];
     let mode = 'efficiency', pick = best, note = '';
@@ -224,7 +236,7 @@
         pick = Object.assign({}, pick, { alt: safest.t !== pick.t ? safest : null });
       }
     }
-    return { shanten: cur, cands, pick, mode, note };
+    return { shanten: cur, cands, pick, mode, note, doraCount: countDora(c, dora) };
   }
 
   // ---------- 鳴き判断 (3n+1 枚) ----------
@@ -248,17 +260,19 @@
     if (toi >= Math.max(3, 5 - melds - 1)) hints.push('対々和');
     return hints;
   }
+  // 各「鳴ける牌」について 鳴く/スルー を判定する。
+  // 戻り値 calls: [{t, kind:'pon'|'chi', use, shanten, ukeire, discard, hints, verdict:'call'|'maybe'|'skip', reason}]
   function analyzeCalls(c, opt) {
-    const melds = opt.melds || 0, seen = opt.seen || new Int8Array(34);
+    const melds = opt.melds || 0, seen = opt.seen || new Int8Array(34), dora = opt.dora || null;
     const s0 = shanten(c, melds);
     const u0 = ukeire(c, melds, seen, s0);
-    const out = { shanten: s0, ukeire: u0.total, waits: u0.tiles, calls: [] };
-    if (s0 === 0) return out; // 聴牌時は鳴き候補は出さない (待ちを表示)
+    const out = { shanten: s0, ukeire: u0.total, waits: u0.tiles, calls: [], doraCount: countDora(c, dora) };
+    if (s0 <= 0) return out; // 聴牌時は待ちを表示 (鳴いて待ちを変える判断は扱わない)
     const yakuhai = [31, 32, 33, 27 + (opt.winds ? opt.winds.round : 0)];
     if (opt.winds) yakuhai.push(27 + opt.winds.seat);
+    const isYao = (x) => x >= 27 || x % 9 === 0 || x % 9 === 8;
     const tryCall = (t, use, kind) => {
       for (const x of use) c[x]--;
-      // 鳴いた後の最良打牌
       let bestS = 9, bestU = -1, bestD = -1;
       for (let d = 0; d < 34; d++) {
         if (!c[d]) continue;
@@ -266,7 +280,7 @@
         c[d]--;
         const s = shanten(c, melds + 1);
         let u = -1;
-        if (s <= bestS) u = ukeire(c, melds + 1, seen, s).total;
+        if (s <= bestS) u = ukeire(c, melds + 1, seen, s).total - (dora && dora[d] ? 5 : 0);
         c[d]++;
         if (s < bestS || (s === bestS && u > bestU)) { bestS = s; bestU = u; bestD = d; }
       }
@@ -274,16 +288,26 @@
       if (bestD >= 0) {
         c[bestD]--;
         hints = yakuHint(c, melds + 1, opt.winds);
+        bestU = ukeire(c, melds + 1, seen, bestS).total;
         c[bestD]++;
-        if (kind === 'pon' && yakuhai.includes(t) && !hints.some((h) => h.includes(label(t)))) hints.unshift('役牌(' + label(t) + ')');
-        // タンヤオ判定は鳴く牌自身も中張牌である必要がある
-        const isYao = (x) => x >= 27 || x % 9 === 0 || x % 9 === 8;
+        if (kind === 'pon' && yakuhai.includes(t)) { hints = hints.filter((h) => !h.includes('(' + label(t) + ')')); hints.unshift('役牌(' + label(t) + ')確定'); }
         if ([t].concat(use).some(isYao)) hints = hints.filter((h) => h !== 'タンヤオ');
       }
       for (const x of use) c[x]++;
-      if (bestS < s0) {
-        out.calls.push({ t, kind, use, shanten: bestS, ukeire: bestU, discard: bestD, hints, good: hints.length > 0 || melds > 0 });
-      }
+      const dn = countDora(c, dora) + (dora ? dora[t] : 0);
+      const sure = kind === 'pon' && yakuhai.includes(t);
+      const strong = sure || hints.some((h) => /混一色|清一色|対々和/.test(h));
+      let verdict, reason;
+      if (sure && bestS === s0 + 1 && !melds && shantenChiitoi(c) === s0 && shantenNormal(c, 0) > s0) { verdict = 'maybe'; reason = '七対子を見切って役牌で進める手もある'; }
+      else if (bestS >= s0) { verdict = 'skip'; reason = (!melds && shantenChiitoi(c) === s0 && shantenNormal(c, 0) > s0) ? '七対子' + s0 + '向聴を崩すだけで進まない' : '向聴数が進まない'; }
+      else if (!hints.length && !melds) { verdict = 'skip'; reason = '鳴くと役がなくなる'; }
+      else if (sure) { verdict = 'call'; reason = '役牌が確定して手が進む'; }
+      else if (melds) { verdict = 'call'; reason = '副露済みなので速度優先'; }
+      else if (!strong && ((s0 <= 1 && u0.total >= 12) || (s0 === 2 && u0.total >= 30))) { verdict = 'skip'; reason = '門前のままリーチを狙える'; }
+      else if (!strong && hints.every((h) => h.startsWith('役牌(')) ) { verdict = 'maybe'; reason = '役牌がまだ対子(後付けになる)'; }
+      else if (!strong && dn === 0) { verdict = 'maybe'; reason = 'ドラなしで安い。急ぐ局面なら鳴く'; }
+      else { verdict = 'call'; reason = bestS === 0 ? '聴牌が取れる' : dn ? 'ドラ' + dn + '枚で打点あり' : '役が見えて手が進む'; }
+      out.calls.push({ t, kind, use, shanten: bestS, ukeire: bestU, discard: bestD, hints, verdict, reason, good: verdict === 'call' });
     };
     for (let t = 0; t < 34; t++) {
       if (4 - c[t] - seen[t] <= 0) continue;
@@ -296,13 +320,14 @@
       }
     }
     // 同じ牌・同じ種類は最良の1つに
-    const seenKey = new Map();
+    const rank = { call: 0, maybe: 1, skip: 2 };
+    const better = (a, b) => rank[a.verdict] - rank[b.verdict] || a.shanten - b.shanten || b.ukeire - a.ukeire;
+    const byKey = new Map();
     for (const k of out.calls) {
-      const key = k.t + k.kind;
-      const p = seenKey.get(key);
-      if (!p || k.shanten < p.shanten || (k.shanten === p.shanten && k.ukeire > p.ukeire)) seenKey.set(key, k);
+      const key = k.t + k.kind, p = byKey.get(key);
+      if (!p || better(k, p) < 0) byKey.set(key, k);
     }
-    out.calls = Array.from(seenKey.values()).sort((a, b) => (b.good - a.good) || a.shanten - b.shanten || b.ukeire - a.ukeire);
+    out.calls = Array.from(byKey.values()).sort((a, b) => better(a, b) || a.t - b.t);
     return out;
   }
 
@@ -330,7 +355,7 @@
     return s;
   }
 
-  const api = { NAMES, label, shanten, shantenNormal, ukeire, analyzeDiscard, analyzeCalls, dangerOf, dangerLabel, parse, toStr };
+  const api = { NAMES, label, doraOf, shanten, shantenNormal, ukeire, analyzeDiscard, analyzeCalls, dangerOf, dangerLabel, parse, toStr };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.MJ = api;
 })(typeof self !== 'undefined' ? self : this);
