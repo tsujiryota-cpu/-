@@ -80,7 +80,8 @@ button{font:inherit;color:inherit;border:0;border-radius:10px;cursor:pointer}
     <div id="stat" hidden></div>
     <div id="start">
       <h1>🀄 麻雀カメラ参謀</h1>
-      <p>麻雀ゲームの画面にカメラを向けると、手牌を読み取って<b>何を切るか</b>・<b>鳴くべき牌</b>・<b>危険牌</b>をその場で表示します。画面全体が映るように、スマホを横向きで構えてください。</p>
+      <p>麻雀ゲームの画面から手牌を読み取り(PCは画面共有、スマホはカメラ)、<b>何を切るか</b>・<b>鳴くべき牌</b>・<b>危険牌</b>をその場で表示します。画面全体が映るように、スマホを横向きで構えてください。</p>
+      <button class="primary" id="btnShare" hidden>ゲーム画面を共有して開始(PC)</button>
       <button class="primary" id="btnStart">カメラを開始</button>
       <label class="ghost" style="cursor:pointer">スクリーンショット/動画で試す<input id="file" type="file" accept="image/*,video/*" hidden></label>
       <p id="loadmsg">認識モデルを読み込み中…</p>
@@ -98,6 +99,7 @@ button{font:inherit;color:inherit;border:0;border-radius:10px;cursor:pointer}
         <span class="lbl">自風</span><button class="tg" id="bSeat">東</button>
         <button class="tg" id="bVoice">🔇</button>
         <button class="tg" id="bSpeed">速度優先</button>
+        <button class="tg" id="bPip" hidden>小窓で表示</button>
       </div>
       <div id="doraRow"><span class="lbl" style="margin-left:0">ドラ表示牌</span><span id="doraInd">未検出</span><button class="tg" id="bDora" style="padding:5px 9px;font-size:12px">変更</button></div>
     </div>
@@ -126,7 +128,10 @@ button{font:inherit;color:inherit;border:0;border-radius:10px;cursor:pointer}
   } catch (e) { /* 単スレッドで続行 */ }
 })();
 
-const $ = (id) => document.getElementById(id);
+// 要素は起動時に控えておく (判定パネルを小窓へ移しても参照できるように)
+const EL = {};
+document.querySelectorAll('[id]').forEach((e) => (EL[e.id] = e));
+const $ = (id) => EL[id];
 const video = $('video'), still = $('still'), overlay = $('overlay');
 const S = {
   src: null, running: false, threats: [false, false, false, false], round: 0, seat: 0, voice: false, detW: 640,
@@ -168,6 +173,40 @@ $('file').onchange = async (ev) => {
     begin(still);
   }
 };
+// ---- 画面共有モード (PC): ゲームのタブ/ウィンドウを直接取り込み、判定を常に手前の小窓に出す
+// 裏に回ったタブでは通常のタイマーが 1 秒間隔に絞られるので、Worker のタイマーで回す
+const tickWorker = new Worker(URL.createObjectURL(new Blob(['onmessage=(e)=>setTimeout(()=>postMessage(0),e.data)'], { type: 'text/javascript' })));
+let tickCb = null;
+tickWorker.onmessage = () => { const f = tickCb; tickCb = null; if (f) f(); };
+const tick = (ms, r) => { tickCb = r; tickWorker.postMessage(ms); };
+if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia && !/Android|iPhone|iPad/.test(navigator.userAgent)) $('btnShare').hidden = false;
+$('btnShare').onclick = async () => {
+  try {
+    const st = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 15 }, audio: false });
+    video.srcObject = st;
+    await video.play();
+    S.screen = true; S.detW = 960;
+    $('bSpeed').textContent = '精度優先'; $('bSpeed').classList.add('sel');
+    st.getVideoTracks()[0].onended = () => { S.running = false; location.reload(); };
+    begin(video);
+    $('bPip').hidden = !('documentPictureInPicture' in window);
+    if (!$('bPip').hidden) openPip().catch(() => {});
+  } catch (e) {
+    $('loadmsg').innerHTML = '<span class="err">画面を共有できませんでした: ' + e.message + '</span>';
+  }
+};
+async function openPip() {
+  if (S.pip) return;
+  const w = await documentPictureInPicture.requestWindow({ width: 400, height: 640 });
+  S.pip = w;
+  const base = w.document.createElement('base'); base.href = location.href; w.document.head.append(base);
+  for (const st of document.querySelectorAll('style')) w.document.head.append(st.cloneNode(true));
+  w.document.body.style.cssText = 'margin:0;background:#0f1512;color:#eef4ef;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif';
+  $('panel').style.cssText = 'max-width:none;height:100vh;box-sizing:border-box';
+  w.document.body.append($('panel'), $('picker'));
+  w.addEventListener('pagehide', () => { S.pip = null; $('panel').style.cssText = ''; $('app').append($('panel')); document.body.append($('picker')); });
+}
+
 function begin(src) {
   S.src = src;
   $('start').hidden = true; $('start').style.display = 'none';
@@ -178,7 +217,7 @@ function begin(src) {
 async function loop() {
   let fpsT = performance.now(), fps = 0;
   while (S.running) {
-    if (!Vision.ready || document.hidden) { await new Promise((r) => setTimeout(r, 200)); continue; }
+    if (!Vision.ready || (document.hidden && !S.screen)) { await new Promise((r) => setTimeout(r, 200)); continue; }
     let res = null;
     try { res = await Vision.process(S.src, { detW: S.detW, handOf: Vision.handFlags }); }
     catch (e) { $('stat').textContent = 'エラー: ' + e.message; await new Promise((r) => setTimeout(r, 500)); continue; }
@@ -190,7 +229,7 @@ async function loop() {
       draw();
       $('stat').textContent = `${fps.toFixed(1)}fps 検出${res.ms.det | 0}ms 分類${res.ms.cls | 0}ms 牌${res.tiles.length}`;
     }
-    await new Promise((r) => (S.src === still ? setTimeout(r, 400) : requestAnimationFrame(r)));
+    await new Promise((r) => (S.src === still ? setTimeout(r, 400) : S.screen ? tick(60, r) : requestAnimationFrame(r)));
   }
 }
 
@@ -389,6 +428,7 @@ const closePick = () => { $('picker').hidden = true; $('picker').style.display =
 $('pickGrid').onclick = (e) => { const el = e.target.closest('[data-t]'); if (!el) return; S.doraManual = [+el.dataset.t]; closePick(); };
 $('pickAuto').onclick = () => { S.doraManual = null; closePick(); };
 $('pickClose').onclick = closePick;
+$('bPip').onclick = () => openPip().catch((e) => { $('stat').textContent = '小窓を開けません: ' + e.message; });
 window.addEventListener('resize', draw);
 </script>
 </body>
