@@ -10,10 +10,14 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;overscroll-behavior:none}
 #app{display:flex;flex-direction:column;height:100dvh;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
-#view{position:relative;background:#000;flex:0 0 auto;display:flex;align-items:center;justify-content:center;min-height:30dvh;max-height:46dvh;overflow:hidden}
+#view{position:relative;background:#000;flex:0 0 auto;display:grid;place-items:center;grid-template-columns:minmax(0,1fr);min-height:30dvh;max-height:46dvh;overflow:hidden}
 #view video,#view img#still{display:block;max-width:100%;max-height:46dvh}
 #overlay{position:absolute;pointer-events:none}
-#start{position:absolute;inset:0;display:flex;flex-direction:column;gap:14px;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 40%,#1d2b23,#0b100d);padding:16px;text-align:center}
+#start{position:absolute;inset:0;display:flex;flex-direction:column;gap:10px;overflow:auto;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 40%,#1d2b23,#0b100d);padding:16px;text-align:center}
+#view [hidden]{display:none}
+#view>*{grid-area:1/1}
+#view.starting{min-height:60dvh;max-height:none}
+#start{justify-content:safe center}
 #start h1{margin:0;font-size:22px;letter-spacing:.04em}
 #start p{margin:0;color:var(--mute);font-size:13px;line-height:1.6;max-width:30em}
 button{font:inherit;color:inherit;border:0;border-radius:10px;cursor:pointer}
@@ -73,17 +77,18 @@ button{font:inherit;color:inherit;border:0;border-radius:10px;cursor:pointer}
 </head>
 <body>
 <div id="app">
-  <div id="view">
+  <div id="view" class="starting">
     <video id="video" playsinline muted autoplay></video>
     <img id="still" alt="" hidden>
     <canvas id="overlay"></canvas>
     <div id="stat" hidden></div>
     <div id="start">
       <h1>🀄 麻雀カメラ参謀</h1>
-      <p>麻雀ゲームの画面から手牌を読み取り(PCは画面共有、スマホはカメラ)、<b>何を切るか</b>・<b>鳴くべき牌</b>・<b>危険牌</b>をその場で表示します。画面全体が映るように、スマホを横向きで構えてください。</p>
+      <p>麻雀ゲームの画面から手牌を読み取り、<b>何を切るか・鳴くか・危険牌</b>を表示します。スマホ1台なら、ゲームでスクショを撮ってコピー →「貼り付けて判定」。</p>
       <button class="primary" id="btnShare" hidden>ゲーム画面を共有して開始(PC)</button>
       <button class="primary" id="btnStart">カメラを開始</button>
-      <label class="ghost" style="cursor:pointer">スクリーンショット/動画で試す<input id="file" type="file" accept="image/*,video/*" hidden></label>
+      <button class="primary" id="btnPaste" style="background:#4ade80">スクショを貼り付けて判定</button>
+      <label class="ghost" style="cursor:pointer">スクリーンショット/動画を選ぶ<input id="file" type="file" accept="image/*,video/*" hidden></label>
       <p id="loadmsg">認識モデルを読み込み中…</p>
     </div>
   </div>
@@ -100,6 +105,7 @@ button{font:inherit;color:inherit;border:0;border-radius:10px;cursor:pointer}
         <button class="tg" id="bVoice">🔇</button>
         <button class="tg" id="bSpeed">速度優先</button>
         <button class="tg" id="bPip" hidden>小窓で表示</button>
+        <button class="tg sel" id="bPaste">📋 貼り付け</button>
       </div>
       <div id="doraRow"><span class="lbl" style="margin-left:0">ドラ表示牌</span><span id="doraInd">未検出</span><button class="tg" id="bDora" style="padding:5px 9px;font-size:12px">変更</button></div>
     </div>
@@ -143,7 +149,9 @@ const tileEl = (t, cls, n) => `<span class="t ${cls || ''}"><img src="tiles/${t}
 const dcls = (v) => (v <= 0 ? 'd0' : v <= 6 ? 'd1' : v <= 12 ? 'd2' : v <= 20 ? 'd3' : 'd4');
 const shName = (s) => (s < 0 ? '和了' : s === 0 ? '聴牌' : s + '向聴');
 
-Vision.init('').then(() => {
+Vision.readyP = Vision.init('');
+Vision.readyP.then(() => {
+  hashImg();
   $('loadmsg').textContent = '準備OK' + (Vision.threads > 1 ? `(${Vision.threads}スレッド)` : '');
 }).catch((e) => { $('loadmsg').innerHTML = '<span class="err">モデルの読み込みに失敗: ' + e.message + '</span>'; });
 
@@ -167,12 +175,39 @@ $('file').onchange = async (ev) => {
     await video.play();
     begin(video);
   } else {
-    still.src = url;
-    await still.decode();
-    still.hidden = false; video.hidden = true;
-    begin(still);
+    await loadStill(url);
   }
 };
+// ---- スクリーンショット判定 (スマホ単体向け): 画像を貼り付け/選択して 1 枚ずつ判定
+async function loadStill(url) {
+  still.src = url;
+  await still.decode();
+  still.hidden = false; video.hidden = true;
+  S.hist = []; S.lastKey = ''; S.lastRawKey = ''; S.doraAuto = null; S.last = null; Vision.cache = [];
+  begin(still);
+}
+async function pasteShot() {
+  try {
+    const items = await navigator.clipboard.read();
+    for (const it of items) {
+      const ty = it.types.find((t) => t.startsWith('image/'));
+      if (ty) return loadStill(URL.createObjectURL(await it.getType(ty)));
+    }
+    throw new Error('クリップボードに画像がありません');
+  } catch (e) {
+    const m = '貼り付けできませんでした: ' + e.message;
+    $('loadmsg').innerHTML = '<span class="err">' + m + '</span>'; $('stat').textContent = m;
+  }
+}
+$('btnPaste').onclick = pasteShot;
+$('bPaste').onclick = pasteShot;
+document.addEventListener('paste', (ev) => {
+  const f = [...(ev.clipboardData ? ev.clipboardData.files : [])].find((x) => x.type.startsWith('image/'));
+  if (f) { ev.preventDefault(); loadStill(URL.createObjectURL(f)); }
+});
+// ショートカットから #img=<base64 JPEG> 付きで開かれた場合はその画像を判定
+const hashImg = () => { if (location.hash.startsWith('#img=')) Vision.readyP.then(() => loadStill('data:image/jpeg;base64,' + decodeURIComponent(location.hash.slice(5)))).catch(() => {}); };
+window.addEventListener('hashchange', hashImg);
 // ---- 画面共有モード (PC): ゲームのタブ/ウィンドウを直接取り込み、判定を常に手前の小窓に出す
 // 裏に回ったタブでは通常のタイマーが 1 秒間隔に絞られるので、Worker のタイマーで回す
 const tickWorker = new Worker(URL.createObjectURL(new Blob(['onmessage=(e)=>setTimeout(()=>postMessage(0),e.data)'], { type: 'text/javascript' })));
@@ -209,7 +244,7 @@ async function openPip() {
 
 function begin(src) {
   S.src = src;
-  $('start').hidden = true; $('start').style.display = 'none';
+  $('start').hidden = true; $('start').style.display = 'none'; $('view').classList.remove('starting');
   $('stat').hidden = false;
   if (!S.running) { S.running = true; loop(); }
 }
