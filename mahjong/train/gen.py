@@ -13,14 +13,18 @@ _glyph = {}
 ALT_DIR = os.environ.get('ALT_TILE_DIR', '/home/user/ext/mahjong-tiles-zddd312/tiles/')  # 別の絵柄 (任意)
 NSETS = 1
 
-def _from_full(path):
-    """牌全体の画像 (白地) から図柄だけを RGBA で取り出す"""
+REAL_DIR = os.environ.get('REAL_DIR', '')  # 実ゲームのスクリーンショット real*.png と ラベル real*.json (任意)
+
+def _from_full(path, margin=(0.09, 0.07)):
+    """牌全体の画像 (白地) から図柄だけを RGBA で取り出す。path は画像ファイルか RGB 配列"""
     from PIL import Image
-    im = np.array(Image.open(path).convert('RGBA').resize((GW, GH), Image.LANCZOS)).astype(np.float32)
-    face = im[GH // 2 - 3:GH // 2 + 3, 6:12, :3].reshape(-1, 3).mean(0)
-    a = np.clip((np.abs(im[:, :, :3] - face).max(2) - 12) / 50, 0, 1) * (im[:, :, 3] / 255)
+    pil = Image.open(path) if isinstance(path, str) else Image.fromarray(path)
+    im = np.array(pil.convert('RGBA').resize((GW, GH), Image.LANCZOS)).astype(np.float32)
+    lum = im[:, :, :3].sum(2)
+    face = im[:, :, :3][lum >= np.percentile(lum, 80)].mean(0)
+    a = np.clip((np.abs(im[:, :, :3] - face).max(2) - 14) / 50, 0, 1) * (im[:, :, 3] / 255)
     m = np.zeros((GH, GW), np.float32)
-    bx, by = int(GW * 0.09), int(GH * 0.07)
+    bx, by = int(GW * margin[0]), int(GH * margin[1])
     m[by:GH - by, bx:GW - bx] = 1
     im[:, :, 3] = a * m * 255
     return im.astype(np.uint8)
@@ -70,6 +74,26 @@ def load_glyphs():
                 g[:, :, :3] = (0.25 * g[:, :, :3] + 0.75 * np.array([205, 35, 35])).astype(np.uint8)
                 _glyph[(k, 100 + s)] = g
         NSETS = 3
+        if REAL_DIR:
+            import json, glob
+            best = {}
+            for jf in sorted(glob.glob(REAL_DIR + '/real*.json')):
+                im = cv2.imread(jf[:-4] + 'png')[:, :, ::-1]
+                for cx, cy, w, h, c, o, z in json.load(open(jf)):
+                    crop = im[int(cy - h / 2) + 1:int(cy + h / 2) - 1, int(cx - w / 2) + 1:int(cx + w / 2) - 1]
+                    crop = np.rot90(crop, {2: 3, 3: 2, 4: 1}.get(int(z), 0))
+                    best.setdefault(int(c), []).append((w * h, np.ascontiguousarray(crop)))
+            for c in range(34):
+                if c in best:
+                    v = sorted(best[c], key=lambda x: -x[0])
+                    if c == 4 and len(v) > 1:      # 手牌の左端の五萬は赤五
+                        _glyph[(3, 100)] = _from_full(v[0][1], (0.03, 0.03)); v = v[1:]
+                    _glyph[(3, c)] = _from_full(v[0][1], (0.03, 0.03))
+                else:
+                    _glyph[(3, c)] = _glyph[(1, c)]
+            for sidx in range(3):
+                _glyph.setdefault((3, 100 + sidx), _glyph[(1, 100 + sidx)])
+            NSETS = 4
 
 def rot_pts(pts, w, k):
     """np.rot90(img,k) と同じ回転を点に適用。w: 回転前の画像幅(正方形前提なら一辺)"""
@@ -91,7 +115,12 @@ class Style:
         s.gscale = r.uniform(0.78, 0.98)
         s.ratio = r.uniform(1.22, 1.42)
         s.back = np.array([r.randint(20, 255) for _ in range(3)], np.float32)
-        s.gset = r.choice([0, 0, 0, 1, 1, 1, 2]) if NSETS > 1 else 0
+        s.gset = r.choice([0, 0, 1, 1, 2, 3, 3, 3] if NSETS > 3 else [0, 0, 0, 1, 1, 1, 2]) if NSETS > 1 else 0
+        s.ms = NSETS > 3 and r.random() < 0.6   # 雀魂風: 厚みのある牌・牌山・中央の点数表示・近い河
+        if s.ms:
+            s.thick = r.uniform(0.12, 0.3)
+            s.back = np.clip(np.array(r.choice([(40, 150, 245), (40, 150, 245), (200, 120, 40), (70, 160, 60), (150, 150, 150)]), np.float32) + np.array([r.randint(-25, 25) for _ in range(3)]), 0, 255)
+            s.gray = np.float32([r.randint(170, 225)] * 3)
         s.cache = {}
 
 def make_tile(code, w, st, r, back=False):
@@ -114,7 +143,13 @@ def make_tile(code, w, st, r, back=False):
         img[k, :3] = col
         img[k, 3] = 1
         return k
-    if th:
+    if th and getattr(st, 'ms', False):
+        if back:
+            rrect(th, h + th, np.float32([235, 235, 235]))
+        else:
+            rrect(th, h + th, st.back)
+            rrect(th // 2, h + th // 2, st.gray)
+    elif th:
         rrect(th, h + th, st.side)
     k = rrect(0, h, st.back if back else st.face)
     if not back:
@@ -218,9 +253,17 @@ def scene(seed):
     tl = np.zeros((S, S, 3), np.float32)
     ta = np.zeros((S, S), np.float32)
     tlab = []
-    rw = r.randint(22, 40)
+    rw = r.randint(26, 42) if st.ms else r.randint(22, 40)
     rh = int(round(rw * st.ratio))
-    d0 = r.uniform(3.0, 4.0) * rw
+    d0 = (r.uniform(2.3, 3.0) if st.ms else r.uniform(3.0, 4.0)) * rw
+    if st.ms and r.random() < 0.85:   # 中央の点数表示
+        q = int(d0 - 0.3 * rw)
+        box = np.zeros((2 * q, 2 * q, 3), np.uint8)
+        box[:] = [r.randint(40, 110)] * 3
+        _clutter(box, r, r.randint(3, 8))
+        cv2.rectangle(box, (0, 0), (2 * q - 1, 2 * q - 1), [r.randint(20, 80)] * 3, r.randint(2, 6))
+        tl[S // 2 - q:S // 2 + q, S // 2 - q:S // 2 + q] = box
+        ta[S // 2 - q:S // 2 + q, S // 2 - q:S // 2 + q] = 1
     full = r.random() < 0.85
     for p in range(4):
         lay = np.zeros((S, S, 3), np.float32)
@@ -260,10 +303,10 @@ def scene(seed):
                 put_tile(lay, la, ll, aka(c, r), mx, my + (mh - mw if k else 0), mw, st, r, k, back=(len(cs) == 4 and kind < 0.05 and j in (0, 3)))
             mx -= r.randint(2, 10)
         # 相手の手牌 (裏)
-        if p and r.random() < 0.6:
+        if p and r.random() < (0.85 if st.ms else 0.6):
             bw = r.randint(18, 34)
             bx = S / 2 - 7 * bw
-            for j in range(r.choice([13, 10, 7])):
+            for j in range(r.randint(6, 17) if st.ms else r.choice([13, 10, 7])):
                 put_tile(lay, la, ll, 0, int(bx + j * bw), S - int(bw * st.ratio) - 2 if r.random() < 2 else 0, bw, st, r, 0, back=True)
         if p:
             lay, la = np.rot90(lay, p), np.rot90(la, p)
@@ -275,6 +318,8 @@ def scene(seed):
     # 卓の傾き
     top = r.uniform(0.72, 1.0) if r.random() < 0.6 else 1.0
     vs = r.uniform(0.7, 1.0) if top < 1 else r.uniform(0.9, 1.0)
+    if st.ms:
+        top, vs = r.uniform(0.62, 0.88), r.uniform(0.58, 0.82)
     sc = r.uniform(0.85, 1.0) * (H * 0.95 / S)
     cx, cy = W / 2 + r.uniform(-60, 60), H * r.uniform(0.40, 0.48)
     hw, hh = S * sc / 2, S * sc * vs / 2
@@ -301,12 +346,17 @@ def scene(seed):
         hand.append(hand.pop(j))
     hx = r.randint(10, max(11, W - 15 * hw_ - 10))
     hy = H - int(hw_ * st.ratio * (1 + st.thick)) - r.randint(0, 40)
+    sth = st
+    if st.ms:      # 手牌は正面向きで厚みなし、下端が画面外に切れることがある
+        import copy
+        sth = copy.copy(st); sth.thick = 0; sth.cache = {}
+        hy = H - int(hw_ * st.ratio * r.uniform(0.78, 1.05))
     sel = r.randrange(n) if r.random() < 0.3 else -1
     gap = r.choice([0, 1, 2])
     for i, c in enumerate(hand):
         if i == n - 1 and n % 3 == 2:
             hx += int(hw_ * r.uniform(0.15, 0.5))
-        put_tile(img, None, labels, aka(c, r), hx, hy - (int(hw_ * 0.25) if i == sel else 0), hw_, st, r, 0, r.choice([1, 1, 1, 1, 1, 0.6]), zone=0)
+        put_tile(img, None, labels, aka(c, r), hx, hy - (int(hw_ * 0.25) if i == sel else 0), hw_, sth, r, 0, r.choice([1, 1, 1, 1, 1, 0.6]), zone=0)
         hx += hw_ + gap
     # ばらまき牌 (多様性用)
     for _ in range(r.choice([0, 0, 0, 2, 5])):
@@ -366,7 +416,27 @@ def camera(img, labels, seed, OW=1280, OH=720):
         lab.append([ctr[0], ctr[1], x1 - x0, y1 - y0, c, o, z])
     return enc, np.float32(lab).reshape(-1, 7)
 
+def real_frames(out, n, s0):
+    """実スクリーンショット (REAL_DIR/real*.png + .json) をカメラ撮影風に加工して学習用フレームにする"""
+    import json, glob
+    os.makedirs(out, exist_ok=True)
+    src = []
+    for jf in sorted(glob.glob(REAL_DIR + '/real*.json')):
+        lab = []
+        for cx, cy, w, h, c, o, z in json.load(open(jf)):
+            q = [[cx - w / 2, cy - h / 2], [cx + w / 2, cy - h / 2], [cx + w / 2, cy + h / 2], [cx - w / 2, cy + h / 2]]
+            k = {2: 3, 3: 2, 4: 1}.get(int(z), 0)   # 牌の上辺が q[0]-q[1] になるよう並べ替え (下家の河=左向き, 対面=下向き, 上家=右向き)
+            lab.append((int(c), np.float32(q[k:] + q[:k]), int(z)))
+        src.append((cv2.imread(jf[:-4] + 'png'), lab))
+    for s in range(s0, s0 + n):
+        img, lab = src[s % len(src)]
+        enc, l = camera(img, lab, s)
+        enc.tofile(f'{out}/{s:06d}.jpg')
+        np.save(f'{out}/{s:06d}.npy', l)
+
 def main():
+    if sys.argv[1] == '--real':
+        return real_frames(sys.argv[2], int(sys.argv[3]), int(sys.argv[4]) if len(sys.argv) > 4 else 0)
     out, n = sys.argv[1], int(sys.argv[2])
     s0 = int(sys.argv[3]) if len(sys.argv) > 3 else 0
     os.makedirs(out, exist_ok=True)

@@ -141,7 +141,7 @@ if __name__ == '__main__':
     while True:
         el = (time.time() - t0) / 60
         if el > minutes: break
-        lr = 2e-3 * (0.5 * (1 + math.cos(math.pi * el / minutes))) + 2e-5
+        lr = float(os.environ.get('LR', '2e-3')) * (0.5 * (1 + math.cos(math.pi * el / minutes))) + 2e-5
         if it < 200: lr *= (it + 1) / 200
         for g in opt.param_groups: g['lr'] = lr
         x, t, m = batch(imgs, labs, rnd, 16)

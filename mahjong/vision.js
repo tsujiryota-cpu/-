@@ -130,8 +130,9 @@
         }
       }
       const a = b.w / b.h;
-      if (a < 0.9) jobs.push({ bi, rot: 0 });
-      else if (a > 1.12) jobs.push({ bi, rot: 1 });
+      // 卓が傾いて映るゲームでは正立の牌も横長に見えるので、広い範囲で両方の向きを試して確信度の高い方を採用
+      if (b.hand || a < 0.7) jobs.push({ bi, rot: 0 });
+      else if (a > 1.95) jobs.push({ bi, rot: 1 });
       else { jobs.push({ bi, rot: 0 }); jobs.push({ bi, rot: 1 }); }
     });
     if (jobs.length) {
@@ -225,7 +226,7 @@
     const small = rest.filter((b) => Math.min(b.w, b.h) < hw * 0.92);
     const s = med((small.length >= 3 ? small : rest).map((b) => Math.min(b.w, b.h)));
     const cand = rest.filter((b) => { const m = Math.min(b.w, b.h); return m > s * 0.6 && m < s * 1.5; });
-    const isSide = (b) => b.w > b.h;
+    const isSide = (b) => (b.side !== undefined ? b.side : b.w > b.h);
     const U = cand.filter((b) => !isSide(b)), Sd = cand.filter(isSide);
     const hx = hand.length ? (hand[0].x + hand[hand.length - 1].x) / 2 : null;
     const hy = hand.length ? med(hand.map((b) => b.y)) : null, hh = hand.length ? med(hand.map((b) => b.h)) : 0;
@@ -314,7 +315,7 @@
       (p >= 0 ? rivers[p] : others).push(b);
     }
     // ドラ表示牌: 河でも手牌でもない正立の牌のうち、卓の左上にあるもの (同じ段で右に続く牌はカンドラ)
-    const dc = others.filter((b) => b.w < b.h && b.conf >= 0.6 && b.x < cx - 4 * s && b.y < cy - 2.5 * s);
+    const dc = others.filter((b) => !isSide(b) && b.conf >= 0.6 && b.x < cx - 4 * s && b.y < cy - 2.5 * s);
     let dora = [];
     if (dc.length) {
       dc.sort((a, b) => (a.x + a.y) - (b.x + b.y));

@@ -44,7 +44,7 @@ def extract(f):
         cx, cy, w, h, c, o = lab[i]
         if w < 9 or h < 9:
             continue
-        side = w > h
+        side = int(o) in (1, 3)   # 牌の上辺が左右を向いている (横倒し)。見かけの縦横比ではなく実際の向きで決める
         t = rnd.random()
         cx2, cy2, w2, h2 = cx + j(0.08) * w, cy + j(0.08) * h, w * (1 + j(0.1)), h * (1 + j(0.1))
         if t < 0.86:
@@ -85,7 +85,10 @@ if __name__ == '__main__':
     VX, VY = build(os.environ.get('VAL_DIRS', data + '/val'))
     print('crops', X.shape, VX.shape, np.bincount(Y, minlength=NC), flush=True)
     np.savez_compressed(out + '.val.npz', x=VX[:2000], y=VY[:2000])
-    net = Cls().to(memory_format=torch.channels_last)
+    net = Cls()
+    if len(sys.argv) > 4:
+        net.load_state_dict(torch.load(sys.argv[4]))
+    net = net.to(memory_format=torch.channels_last)
     print('params', sum(p.numel() for p in net.parameters()))
     opt = torch.optim.AdamW(net.parameters(), 2e-3, weight_decay=5e-4)
     t0 = time.time(); it = 0; ema = None
@@ -93,7 +96,7 @@ if __name__ == '__main__':
     while True:
         el = (time.time() - t0) / 60
         if el > minutes: break
-        lr = 2e-3 * (0.5 * (1 + math.cos(math.pi * el / minutes))) + 1e-5
+        lr = float(os.environ.get('LR', '2e-3')) * (0.5 * (1 + math.cos(math.pi * el / minutes))) + 1e-5
         for g in opt.param_groups: g['lr'] = lr
         i = np.random.randint(0, len(X), 128)
         x = to_t(X[i])
